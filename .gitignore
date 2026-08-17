@@ -1,0 +1,23 @@
+# Node dependencies
+node_modules/
+**/node_modules/
+
+# Production builds
+dist/
+**/dist/
+build/
+**/build/
+
+# Local Environment & Databases
+.env
+*.env
+*.log
+dev.db-journal
+.system_generated/
+.user_uploaded/
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
