@@ -70,7 +70,7 @@ export const Sidebar: React.FC = () => {
   const navItems = isAdmin ? adminNavItems : teacherNavItems;
 
   return (
-    <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col min-h-screen border-r border-slate-800 shrink-0">
+    <aside className="hidden md:flex w-64 bg-slate-900 text-slate-300 flex-col min-h-screen border-r border-slate-800 shrink-0">
       {/* Brand Header */}
       <div className="p-5 border-b border-slate-800 flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-brand-600/30 shrink-0">

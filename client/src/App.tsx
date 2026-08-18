@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AcademicProvider } from './context/AcademicContext';
 import { Sidebar } from './components/Sidebar';
+import { MobileBottomNav } from './components/MobileBottomNav';
+import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 
 import { Login } from './pages/Login';
 import { PublicStudentPortal } from './pages/PublicStudentPortal';
@@ -39,9 +41,13 @@ const ProtectedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
   }
 
   return (
-    <div className="flex min-h-screen bg-surface-bg">
-      <Sidebar />
-      <div className="flex-1 overflow-x-hidden flex flex-col">{children}</div>
+    <div className="flex flex-col min-h-screen bg-surface-bg">
+      <PWAInstallPrompt />
+      <div className="flex flex-1 overflow-x-hidden">
+        <Sidebar />
+        <div className="flex-1 overflow-x-hidden flex flex-col pb-16 md:pb-0">{children}</div>
+      </div>
+      <MobileBottomNav />
     </div>
   );
 };
