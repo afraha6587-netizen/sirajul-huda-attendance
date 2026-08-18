@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { CheckSquare, Save, Search, Sparkles, CheckCircle2, XCircle, Clock, BookOpen, MessageSquare, Phone } from 'lucide-react';
+import { CheckSquare, Save, Search, Sparkles, CheckCircle2, XCircle, Clock, BookOpen, MessageSquare, Phone, Link2, AlertCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import api from '../utils/api';
 import { ClassSubject, Student, AttendanceSession } from '../types';
 import { Navbar } from '../components/Navbar';
@@ -24,13 +25,18 @@ export const MarkAttendance: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState<string>('');
   const [whatsappAlerts, setWhatsappAlerts] = useState<any[]>([]);
 
-  useEffect(() => {
+  const fetchClassSubjects = () => {
     api.get('/class-subjects').then((res) => {
-      setClassSubjects(res.data);
-      if (res.data.length > 0) {
-        setSelectedClassSubjectId(res.data[0].id);
+      const list = Array.isArray(res.data) ? res.data : [];
+      setClassSubjects(list);
+      if (list.length > 0) {
+        setSelectedClassSubjectId(list[0].id);
       }
     });
+  };
+
+  useEffect(() => {
+    fetchClassSubjects();
   }, []);
 
   const selectedCS = classSubjects.find((cs) => cs.id === selectedClassSubjectId);
@@ -144,6 +150,28 @@ export const MarkAttendance: React.FC = () => {
       <Navbar title="Mark Period Attendance" subtitle="Select Class, Subject, Period, and log syllabus progress" />
 
       <main className="max-w-7xl mx-auto px-6 pt-6 space-y-6">
+        {/* Warning if 0 Class-Subject Assignments exist */}
+        {classSubjects.length === 0 && (
+          <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-6 h-6 text-amber-600 shrink-0" />
+              <div>
+                <h4 className="text-sm font-bold">No Class Subject Assignments Configured</h4>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  Before marking period attendance, subjects and Usthads must be assigned to classes.
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/class-assignments"
+              className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-sm flex items-center gap-2 shrink-0"
+            >
+              <Link2 className="w-4 h-4" />
+              <span>Assign Subjects to Classes</span>
+            </Link>
+          </div>
+        )}
+
         {/* Header Controls */}
         <div className="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -156,11 +184,15 @@ export const MarkAttendance: React.FC = () => {
                 onChange={(e) => setSelectedClassSubjectId(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:border-brand-600 focus:outline-none font-bold"
               >
-                {classSubjects.map((cs) => (
-                  <option key={cs.id} value={cs.id}>
-                    Class {cs.class.name} — {cs.subject.name} ({cs.teacher.name})
-                  </option>
-                ))}
+                {classSubjects.length === 0 ? (
+                  <option value="">No Class-Subject Assignments Found</option>
+                ) : (
+                  classSubjects.map((cs) => (
+                    <option key={cs.id} value={cs.id}>
+                      Class {cs.class.name} — {cs.subject.name} ({cs.teacher.name})
+                    </option>
+                  ))
+                )}
               </select>
             </div>
 
@@ -270,7 +302,7 @@ export const MarkAttendance: React.FC = () => {
             </button>
             <button
               onClick={handleSave}
-              disabled={saving}
+              disabled={saving || !selectedClassSubjectId}
               className="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-colors disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
@@ -378,7 +410,9 @@ export const MarkAttendance: React.FC = () => {
                 ) : (
                   <tr>
                     <td colSpan={6} className="px-6 py-8 text-center text-slate-400">
-                      No active students found in this class
+                      {classSubjects.length === 0
+                        ? 'Please assign subjects to classes on Class Assignments page'
+                        : 'No active students found in this class'}
                     </td>
                   </tr>
                 )}
