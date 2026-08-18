@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import apiRouter from './routes/api';
+import { ensureAdminSeeded } from './seed';
 
 dotenv.config();
 
@@ -20,6 +21,11 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 College Attendance Server running on http://localhost:${PORT}`);
+app.listen(PORT, async () => {
+  console.log(`🚀 College Attendance Server running on port ${PORT}`);
+  try {
+    await ensureAdminSeeded();
+  } catch (err) {
+    console.error('Failed to auto-seed admin on startup:', err);
+  }
 });

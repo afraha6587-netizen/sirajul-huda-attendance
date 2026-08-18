@@ -3,10 +3,13 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-async function main() {
+export async function ensureAdminSeeded() {
+  const userCount = await prisma.user.count();
+  if (userCount > 0) return;
+
   console.log('🧹 Initializing clean production database for Sirajul Huda College...');
 
-  // Delete all existing data
+  // Delete all existing data if any
   await prisma.auditLog.deleteMany();
   await prisma.dailyAttendance.deleteMany();
   await prisma.attendanceRecord.deleteMany();
@@ -103,11 +106,13 @@ async function main() {
   console.log('🔑 Password: Admin@123456');
 }
 
-main()
-  .catch((e) => {
-    console.error('❌ Seeding error:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+if (require.main === module) {
+  ensureAdminSeeded()
+    .catch((e) => {
+      console.error('❌ Seeding error:', e);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}
