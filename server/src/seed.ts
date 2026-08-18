@@ -102,14 +102,14 @@ export async function ensureAdminSeeded() {
 
   // 6. Create Standard Teachers / Usthads if missing
   const teachersData = [
-    { name: 'Usthad Ahmad Al-Huda', email: 'ahmad@college.edu', phone: '9876543210', designation: 'Senior Lecturer in Tafsir' },
-    { name: 'Usthad Muhammed Faizal', email: 'faizal@college.edu', phone: '9876543211', designation: 'Senior Lecturer in Fiqh' },
-    { name: 'Usthad Ibrahim Khalil', email: 'ibrahim@college.edu', phone: '9876543212', designation: 'Arabic Language Lecturer' },
+    { name: 'Usthad Ahmad Al-Huda', code: 'TCH-001' },
+    { name: 'Usthad Muhammed Faizal', code: 'TCH-002' },
+    { name: 'Usthad Ibrahim Khalil', code: 'TCH-003' },
   ];
 
   const createdTeachers: any[] = [];
   for (const tData of teachersData) {
-    let teacher = await prisma.teacher.findFirst({ where: { email: tData.email } });
+    let teacher = await prisma.teacher.findFirst({ where: { code: tData.code } });
     if (!teacher) {
       teacher = await prisma.teacher.create({ data: tData });
     }

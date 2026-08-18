@@ -35,6 +35,31 @@ export const createAcademicYear = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const updateAcademicYear = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, startDate, endDate, isCurrent } = req.body;
+
+    if (isCurrent) {
+      await prisma.academicYear.updateMany({ data: { isCurrent: false } });
+    }
+
+    const updated = await prisma.academicYear.update({
+      where: { id },
+      data: {
+        ...(name && { name }),
+        ...(startDate && { startDate: new Date(startDate) }),
+        ...(endDate && { endDate: new Date(endDate) }),
+        ...(isCurrent !== undefined && { isCurrent: Boolean(isCurrent) }),
+      },
+    });
+
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to update academic year' });
+  }
+};
+
 // Academic Months
 export const getAcademicMonths = async (req: AuthRequest, res: Response) => {
   try {

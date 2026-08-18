@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, Plus, CheckCircle2, Sparkles, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Calendar, Plus, CheckCircle2, Sparkles, AlertCircle, ShieldCheck, Edit2 } from 'lucide-react';
 import api from '../utils/api';
 import { AcademicYear } from '../types';
 import { Navbar } from '../components/Navbar';
@@ -12,24 +12,35 @@ export const AcademicYearsPage: React.FC = () => {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingYear, setEditingYear] = useState<AcademicYear | null>(null);
   const [formData, setFormData] = useState({
     name: '2027-2028',
     startDate: '2027-06-01',
     endDate: '2028-04-30',
   });
 
-  const handleOpenModal = () => {
-    // Auto increment default next year
-    const lastYearStr = academicYears[academicYears.length - 1]?.name || '2026-2027';
-    const parts = lastYearStr.split('-');
-    if (parts.length === 2 && !isNaN(Number(parts[0]))) {
-      const nextStart = Number(parts[0]) + 1;
-      const nextEnd = Number(parts[1]) + 1;
+  const handleOpenModal = (yr?: AcademicYear) => {
+    if (yr) {
+      setEditingYear(yr);
       setFormData({
-        name: `${nextStart}-${nextEnd}`,
-        startDate: `${nextStart}-06-01`,
-        endDate: `${nextEnd}-04-30`,
+        name: yr.name,
+        startDate: yr.startDate ? yr.startDate.split('T')[0] : '',
+        endDate: yr.endDate ? yr.endDate.split('T')[0] : '',
       });
+    } else {
+      setEditingYear(null);
+      // Auto increment default next year
+      const lastYearStr = academicYears[academicYears.length - 1]?.name || '2026-2027';
+      const parts = lastYearStr.split('-');
+      if (parts.length === 2 && !isNaN(Number(parts[0]))) {
+        const nextStart = Number(parts[0]) + 1;
+        const nextEnd = Number(parts[1]) + 1;
+        setFormData({
+          name: `${nextStart}-${nextEnd}`,
+          startDate: `${nextStart}-06-01`,
+          endDate: `${nextEnd}-04-30`,
+        });
+      }
     }
     setIsModalOpen(true);
   };
@@ -39,12 +50,17 @@ export const AcademicYearsPage: React.FC = () => {
     setLoading(true);
 
     try {
-      await api.post('/academic-years', formData);
+      if (editingYear) {
+        await api.put(`/academic-years/${editingYear.id}`, formData);
+        alert(`Academic Year ${formData.name} updated successfully!`);
+      } else {
+        await api.post('/academic-years', formData);
+        alert(`Academic Year ${formData.name} created successfully with 12 initialized months!`);
+      }
       setIsModalOpen(false);
       await refreshAcademicData();
-      alert(`Academic Year ${formData.name} created successfully with 12 initialized months!`);
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to create academic year');
+      alert(err.response?.data?.error || 'Failed to save academic year');
     } finally {
       setLoading(false);
     }
@@ -52,15 +68,7 @@ export const AcademicYearsPage: React.FC = () => {
 
   const handleSetActiveYear = async (yr: AcademicYear) => {
     try {
-      // Set active year in database
-      await api.post('/academic-years', {
-        id: yr.id,
-        name: yr.name,
-        startDate: yr.startDate,
-        endDate: yr.endDate,
-        isCurrent: true,
-      });
-
+      await api.put(`/academic-years/${yr.id}`, { isCurrent: true });
       setSelectedYearId(yr.id);
       await refreshAcademicData();
       alert(`Academic Year ${yr.name} is now the active system year!`);
@@ -71,7 +79,7 @@ export const AcademicYearsPage: React.FC = () => {
 
   return (
     <div className="flex-1 bg-surface-bg min-h-screen pb-12">
-      <Navbar title="Academic Years & Future Planning" subtitle="Create future academic years and switch active year for the college" />
+      <Navbar title="Academic Years & Dates" subtitle="Create future years, adjust ending dates, and switch active year" />
 
       <main className="max-w-7xl mx-auto px-6 pt-6 space-y-6">
         {/* Info Banner */}
@@ -79,16 +87,16 @@ export const AcademicYearsPage: React.FC = () => {
           <div>
             <div className="flex items-center gap-2 text-brand-400 text-xs font-bold uppercase tracking-wider">
               <Calendar className="w-4 h-4" />
-              <span>Future Academic Year Management</span>
+              <span>Multi-Year Academic Configuration</span>
             </div>
-            <h2 className="text-xl font-extrabold mt-1">Multi-Year Academic Configuration</h2>
+            <h2 className="text-xl font-extrabold mt-1">Academic Year Dates & Planning</h2>
             <p className="text-xs text-slate-300 mt-1 max-w-2xl">
-              You can create future academic years (e.g., 2027-2028, 2028-2029) at any time. Creating a year automatically generates 12 months for seamless future planning.
+              You can edit ending dates of current or future academic years at any time as college schedules change.
             </p>
           </div>
 
           <button
-            onClick={handleOpenModal}
+            onClick={() => handleOpenModal()}
             className="w-full sm:w-auto px-5 py-3 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-all shrink-0"
           >
             <Plus className="w-4 h-4" />
@@ -129,24 +137,32 @@ export const AcademicYearsPage: React.FC = () => {
                     </div>
                     <p className="text-xs text-slate-500 mt-1 font-semibold">
                       Start Date: <strong className="text-slate-800">{yr.startDate?.split('T')[0]}</strong> • End Date:{' '}
-                      <strong className="text-slate-800">{yr.endDate?.split('T')[0]}</strong>
+                      <strong className="text-brand-700 font-black">{yr.endDate?.split('T')[0]}</strong>
                     </p>
                   </div>
                 </div>
 
-                <div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => handleOpenModal(yr)}
+                    className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center gap-1.5 transition-all border border-slate-200"
+                  >
+                    <Edit2 className="w-3.5 h-3.5 text-brand-600" />
+                    <span>Edit Dates</span>
+                  </button>
+
                   {!yr.isCurrent ? (
                     <button
                       onClick={() => handleSetActiveYear(yr)}
-                      className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-sm flex items-center gap-2 transition-all"
+                      className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-sm flex items-center gap-2 transition-all"
                     >
                       <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      <span>Set as Active Year</span>
+                      <span>Set Active</span>
                     </button>
                   ) : (
-                    <span className="px-4 py-2 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-extrabold border border-emerald-200 flex items-center gap-1.5">
+                    <span className="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-extrabold border border-emerald-200 flex items-center gap-1.5">
                       <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                      <span>Current Active</span>
+                      <span>Active</span>
                     </span>
                   )}
                 </div>
@@ -156,8 +172,12 @@ export const AcademicYearsPage: React.FC = () => {
         </div>
       </main>
 
-      {/* Create New Academic Year Modal */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Create New Academic Year">
+      {/* Create / Edit Academic Year Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingYear ? `Edit Academic Year (${editingYear.name})` : 'Create New Academic Year'}
+      >
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
@@ -166,7 +186,7 @@ export const AcademicYearsPage: React.FC = () => {
             <input
               type="text"
               required
-              placeholder="e.g. 2027-2028"
+              placeholder="e.g. 2026-2027"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm font-bold focus:border-brand-600 focus:outline-none"
@@ -189,7 +209,7 @@ export const AcademicYearsPage: React.FC = () => {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-                End Date
+                End Date (Adjustable)
               </label>
               <input
                 type="date"
@@ -202,7 +222,7 @@ export const AcademicYearsPage: React.FC = () => {
           </div>
 
           <div className="p-3 bg-brand-50 rounded-xl text-xs text-brand-800 border border-brand-200">
-            <strong>Automatic Setup:</strong> Creating a new academic year will automatically generate 12 academic months (June to May) with working days configured.
+            <strong>Flexible Dates:</strong> You can update the ending date at any time as college terms or exam schedules change.
           </div>
 
           <div className="pt-4 flex justify-end gap-3">
@@ -218,7 +238,7 @@ export const AcademicYearsPage: React.FC = () => {
               disabled={loading}
               className="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold shadow-md disabled:opacity-50"
             >
-              {loading ? 'Creating Year...' : 'Create Academic Year'}
+              {loading ? 'Saving...' : editingYear ? 'Update Academic Year' : 'Create Academic Year'}
             </button>
           </div>
         </form>
