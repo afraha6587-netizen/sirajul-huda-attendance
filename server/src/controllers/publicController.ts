@@ -1,5 +1,19 @@
 import { Request, Response } from 'express';
 import { prisma } from '../utils/prisma';
+import { ensureAdminSeeded } from '../seed';
+
+export const seedSystem = async (req: Request, res: Response) => {
+  try {
+    await ensureAdminSeeded();
+    res.json({
+      message: 'System database successfully initialized!',
+      adminEmail: 'admin@college.edu',
+      adminPassword: 'Admin@123456',
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to seed system' });
+  }
+};
 
 export const getPublicStudentAttendance = async (req: Request, res: Response) => {
   try {

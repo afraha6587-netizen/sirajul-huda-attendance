@@ -22,7 +22,7 @@ import {
 } from '../controllers/attendanceController';
 import { getMonthlyAttendanceReport, getDashboardStats, getStudentsAtRisk } from '../controllers/reportController';
 import { exportMonthlyReportToExcel, importExcelData } from '../controllers/importExportController';
-import { getPublicStudentAttendance } from '../controllers/publicController';
+import { getPublicStudentAttendance, seedSystem } from '../controllers/publicController';
 import { getUsers, createUser, updateUser, deleteUser } from '../controllers/userController';
 import { getHolidays, createHoliday, deleteHoliday, getCalendarMonthGrid } from '../controllers/holidayController';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
@@ -34,6 +34,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 router.post('/auth/login', login);
 router.get('/public/student-attendance', getPublicStudentAttendance);
 router.get('/public/academic-months', getAcademicMonths);
+router.get('/public/seed', seedSystem);
 
 // 2. AUTHENTICATED ROUTES
 router.use(authenticateToken);
