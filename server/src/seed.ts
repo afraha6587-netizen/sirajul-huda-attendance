@@ -3,6 +3,22 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+export async function cleanResetDatabase() {
+  console.log('🧹 Performing complete data wipe for Sirajul Huda College...');
+
+  // Delete all attendance data, logs, and student roster for a clean website slate
+  await prisma.auditLog.deleteMany();
+  await prisma.dailyAttendance.deleteMany();
+  await prisma.attendanceRecord.deleteMany();
+  await prisma.attendanceSession.deleteMany();
+  await prisma.student.deleteMany();
+
+  // Ensure base structure exists
+  await ensureAdminSeeded();
+
+  console.log('✨ Database cleanly reset with 0 attendance logs and 0 students!');
+}
+
 export async function ensureAdminSeeded() {
   console.log('🧹 Initializing clean production database for Sirajul Huda College...');
 
@@ -120,7 +136,6 @@ export async function ensureAdminSeeded() {
   const assignmentCount = await prisma.classSubject.count();
   if (assignmentCount === 0 && createdClasses.length > 0 && createdSubjects.length > 0 && createdTeachers.length > 0) {
     for (const cls of createdClasses) {
-      // Assign Tafsir to Teacher 1
       await prisma.classSubject.create({
         data: {
           classId: cls.id,
@@ -130,7 +145,6 @@ export async function ensureAdminSeeded() {
         },
       });
 
-      // Assign Fiqh to Teacher 2
       await prisma.classSubject.create({
         data: {
           classId: cls.id,
@@ -140,7 +154,6 @@ export async function ensureAdminSeeded() {
         },
       });
 
-      // Assign Arabic to Teacher 3
       await prisma.classSubject.create({
         data: {
           classId: cls.id,
@@ -170,9 +183,9 @@ export async function ensureAdminSeeded() {
 }
 
 if (require.main === module) {
-  ensureAdminSeeded()
+  cleanResetDatabase()
     .catch((e) => {
-      console.error('❌ Seeding error:', e);
+      console.error('❌ Reset error:', e);
       process.exit(1);
     })
     .finally(async () => {
