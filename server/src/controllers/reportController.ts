@@ -207,9 +207,11 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
     ]);
 
     let activeMonth = null;
-    if (monthId) {
+    const cleanMonthId = String(monthId || '').trim();
+
+    if (cleanMonthId && cleanMonthId !== 'undefined' && cleanMonthId !== 'null') {
       activeMonth = await prisma.academicMonth.findUnique({
-        where: { id: String(monthId) },
+        where: { id: cleanMonthId },
         include: { academicYear: true },
       });
     }
@@ -283,6 +285,7 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
       classChartData,
     });
   } catch (error: any) {
+    console.error('Error fetching dashboard stats:', error);
     res.status(500).json({ error: error.message || 'Failed to fetch dashboard statistics' });
   }
 };
@@ -293,8 +296,10 @@ export const getStudentsAtRisk = async (req: AuthRequest, res: Response) => {
     const { monthId } = req.query;
 
     let month = null;
-    if (monthId) {
-      month = await prisma.academicMonth.findUnique({ where: { id: String(monthId) } });
+    const cleanMonthId = String(monthId || '').trim();
+
+    if (cleanMonthId && cleanMonthId !== 'undefined' && cleanMonthId !== 'null') {
+      month = await prisma.academicMonth.findUnique({ where: { id: cleanMonthId } });
     }
 
     if (!month) {
