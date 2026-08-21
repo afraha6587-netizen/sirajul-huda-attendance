@@ -3,14 +3,15 @@ import { CheckCircle2, XCircle, Clock, Save, Sparkles, MessageSquare } from 'luc
 import api from '../utils/api';
 import { Class, Student } from '../types';
 import { Navbar } from '../components/Navbar';
+import { useAcademic } from '../context/AcademicContext';
 import { getHijriDateString } from '../utils/hijri';
 
 export const MarkDailyAttendance: React.FC = () => {
+  const { selectedDate, setSelectedDate } = useAcademic();
   const [classes, setClasses] = useState<Class[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
 
   const [selectedClassId, setSelectedClassId] = useState<string>('');
-  const [dateInput, setDateInput] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [attendanceState, setAttendanceState] = useState<Record<string, 'PRESENT' | 'ABSENT' | 'LEAVE'>>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -25,25 +26,34 @@ export const MarkDailyAttendance: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!selectedClassId) return;
+    if (!selectedClassId || !selectedDate) return;
 
     setLoading(true);
     setSuccessMessage('');
 
-    api.get('/students', { params: { classId: selectedClassId } })
-      .then((res) => {
-        const list: Student[] = Array.isArray(res.data) ? res.data : res.data?.students || [];
+    Promise.all([
+      api.get('/students', { params: { classId: selectedClassId } }),
+      api.get('/attendance/daily', { params: { classId: selectedClassId, date: selectedDate } }),
+    ])
+      .then(([studRes, dailyRes]) => {
+        const list: Student[] = Array.isArray(studRes.data) ? studRes.data : studRes.data?.students || [];
         setStudents(list);
+
+        const savedDaily: any[] = Array.isArray(dailyRes.data) ? dailyRes.data : [];
+        const savedMap: Record<string, 'PRESENT' | 'ABSENT' | 'LEAVE'> = {};
+        savedDaily.forEach((d) => {
+          savedMap[d.studentId] = d.status as any;
+        });
 
         const initial: Record<string, 'PRESENT' | 'ABSENT' | 'LEAVE'> = {};
         list.forEach((s) => {
-          initial[s.id] = 'PRESENT';
+          initial[s.id] = savedMap[s.id] || 'PRESENT';
         });
         setAttendanceState(initial);
       })
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
-  }, [selectedClassId]);
+  }, [selectedClassId, selectedDate]);
 
   const handleMarkAll = (status: 'PRESENT' | 'ABSENT' | 'LEAVE') => {
     const updated: Record<string, 'PRESENT' | 'ABSENT' | 'LEAVE'> = {};
@@ -64,12 +74,12 @@ export const MarkDailyAttendance: React.FC = () => {
     const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
 
     const className = classes.find((c) => c.id === selectedClassId)?.name || 'Class';
-    const text = `Sirajul Huda College Alert: Your ward ${student.name} (Reg No: ${student.registerNumber}, Class ${className}) was marked ${status} for daily college attendance on ${dateInput}.`;
+    const text = `Sirajul Huda College Alert: Your ward ${student.name} (Reg No: ${student.registerNumber}, Class ${className}) was marked ${status} for daily college attendance on ${selectedDate}.`;
     return `https://wa.me/${formattedPhone}?text=${encodeURIComponent(text)}`;
   };
 
   const handleSave = async () => {
-    if (!selectedClassId) return;
+    if (!selectedClassId || !selectedDate) return;
     setSaving(true);
     setSuccessMessage('');
 
@@ -81,11 +91,11 @@ export const MarkDailyAttendance: React.FC = () => {
 
       await api.post('/attendance/daily', {
         classId: selectedClassId,
-        date: dateInput,
+        date: selectedDate,
         records,
       });
 
-      setSuccessMessage(`Daily attendance logged for ${students.length} students!`);
+      setSuccessMessage(`Daily attendance logged & synced for ${students.length} students!`);
       setTimeout(() => setSuccessMessage(''), 4000);
     } catch (err: any) {
       alert(err.response?.data?.error || 'Failed to save daily attendance');
@@ -105,12 +115,12 @@ export const MarkDailyAttendance: React.FC = () => {
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Date</label>
               <input
                 type="date"
-                value={dateInput}
-                onChange={(e) => setDateInput(e.target.value)}
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
                 className="px-3 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:border-brand-600 focus:outline-none"
               />
               <span className="text-[11px] font-semibold text-teal-700 mt-1 block">
-                🌙 Hijri: {getHijriDateString(dateInput)}
+                🌙 Hijri: {getHijriDateString(selectedDate)}
               </span>
             </div>
 

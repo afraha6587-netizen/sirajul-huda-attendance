@@ -2,6 +2,11 @@ import { Request, Response } from 'express';
 import { prisma } from '../utils/prisma';
 import { ensureAdminSeeded, cleanResetDatabase } from '../seed';
 
+const monthNamesArray = [
+  'january', 'february', 'march', 'april', 'may', 'june',
+  'july', 'august', 'september', 'october', 'november', 'december',
+];
+
 export const cleanResetSystem = async (_req: Request, res: Response) => {
   try {
     await cleanResetDatabase();
@@ -61,10 +66,28 @@ export const getPublicStudentAttendance = async (req: Request, res: Response) =>
       return res.status(404).json({ error: `No active student found matching "${queryTerm}"` });
     }
 
-    // 2. Resolve Academic Month (selected monthId or latest month)
-    let month = monthId
-      ? await prisma.academicMonth.findUnique({ where: { id: String(monthId) } })
-      : await prisma.academicMonth.findFirst({ orderBy: [{ year: 'desc' }, { id: 'desc' }] });
+    // 2. Resolve Academic Month (selected monthId or current active month matching today)
+    let month = null;
+    if (monthId) {
+      month = await prisma.academicMonth.findUnique({ where: { id: String(monthId) } });
+    }
+
+    if (!month) {
+      const now = new Date();
+      const currentMonthName = now.toLocaleString('default', { month: 'long' }).toLowerCase();
+      const currentYear = now.getFullYear();
+
+      month = await prisma.academicMonth.findFirst({
+        where: {
+          year: currentYear,
+          monthName: { equals: currentMonthName },
+        },
+      });
+
+      if (!month) {
+        month = await prisma.academicMonth.findFirst({ orderBy: [{ year: 'desc' }] });
+      }
+    }
 
     if (!month) {
       return res.status(404).json({ error: 'No active academic month found' });

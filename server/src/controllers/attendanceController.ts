@@ -163,6 +163,29 @@ export const saveDailyAttendance = async (req: Request, res: Response) => {
   }
 };
 
+export const getDailyAttendance = async (req: Request, res: Response) => {
+  try {
+    const { classId, date } = req.query;
+    if (!classId || !date) {
+      return res.status(400).json({ error: 'classId and date are required' });
+    }
+
+    const records = await prisma.dailyAttendance.findMany({
+      where: {
+        classId: String(classId),
+        date: String(date),
+      },
+      include: {
+        student: true,
+      },
+    });
+
+    res.json(records);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch daily attendance' });
+  }
+};
+
 export const getAttendanceSessions = async (req: Request, res: Response) => {
   try {
     const { classId, subjectId, date } = req.query;

@@ -194,17 +194,32 @@ export const getMonthlyAttendanceReport = async (req: AuthRequest, res: Response
 // 2. Admin Dashboard Overview Stats & Charts
 export const getDashboardStats = async (req: AuthRequest, res: Response) => {
   try {
-    const [totalStudents, totalClasses, totalSubjects, totalTeachers, settings, activeMonth] = await Promise.all([
+    const now = new Date();
+    const currentMonthName = now.toLocaleString('default', { month: 'long' }).toLowerCase();
+    const currentYear = now.getFullYear();
+
+    const [totalStudents, totalClasses, totalSubjects, totalTeachers, settings] = await Promise.all([
       prisma.student.count({ where: { active: true } }),
       prisma.class.count({ where: { active: true } }),
       prisma.subject.count({ where: { active: true } }),
       prisma.teacher.count({ where: { active: true } }),
       prisma.systemSettings.findFirst(),
-      prisma.academicMonth.findFirst({
-        orderBy: [{ year: 'desc' }, { id: 'desc' }],
-        include: { academicYear: true },
-      }),
     ]);
+
+    let activeMonth = await prisma.academicMonth.findFirst({
+      where: {
+        year: currentYear,
+        monthName: { equals: currentMonthName },
+      },
+      include: { academicYear: true },
+    });
+
+    if (!activeMonth) {
+      activeMonth = await prisma.academicMonth.findFirst({
+        orderBy: [{ year: 'desc' }],
+        include: { academicYear: true },
+      });
+    }
 
     const threshold = settings?.attendanceThreshold || 75.0;
 
@@ -269,9 +284,26 @@ export const getStudentsAtRisk = async (req: AuthRequest, res: Response) => {
   try {
     const { monthId } = req.query;
 
-    const month = monthId
-      ? await prisma.academicMonth.findUnique({ where: { id: String(monthId) } })
-      : await prisma.academicMonth.findFirst({ orderBy: [{ year: 'desc' }] });
+    let month = null;
+    if (monthId) {
+      month = await prisma.academicMonth.findUnique({ where: { id: String(monthId) } });
+    }
+
+    if (!month) {
+      const now = new Date();
+      const currentMonthName = now.toLocaleString('default', { month: 'long' }).toLowerCase();
+      const currentYear = now.getFullYear();
+      month = await prisma.academicMonth.findFirst({
+        where: {
+          year: currentYear,
+          monthName: { equals: currentMonthName },
+        },
+      });
+
+      if (!month) {
+        month = await prisma.academicMonth.findFirst({ orderBy: [{ year: 'desc' }] });
+      }
+    }
 
     if (!month) {
       return res.json([]);

@@ -14,6 +14,11 @@ interface AcademicContextType {
   refreshAcademicData: () => Promise<void>;
 }
 
+const monthNamesArray = [
+  'january', 'february', 'march', 'april', 'may', 'june',
+  'july', 'august', 'september', 'october', 'november', 'december',
+];
+
 const AcademicContext = createContext<AcademicContextType | undefined>(undefined);
 
 export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -33,26 +38,70 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return localStorage.getItem('shc_selected_date') || new Date().toISOString().split('T')[0];
   });
 
+  // Helper to sync month ID from date string YYYY-MM-DD
+  const syncMonthFromDate = (dateStr: string, monthsList: AcademicMonth[]) => {
+    if (!dateStr || monthsList.length === 0) return;
+    const parts = dateStr.split('-');
+    if (parts.length < 2) return;
+
+    const y = Number(parts[0]);
+    const mIdx = Number(parts[1]) - 1;
+    const targetMonthName = monthNamesArray[mIdx];
+
+    const match = monthsList.find(
+      (m) => m.year === y && m.monthName.toLowerCase() === targetMonthName
+    );
+
+    if (match) {
+      setSelectedMonthIdState(match.id);
+      localStorage.setItem('shc_selected_month_id', match.id);
+    }
+  };
+
   const setSelectedYearId = (id: string) => {
     setSelectedYearIdState(id);
     localStorage.setItem('shc_selected_year_id', id);
 
-    // Auto-select first month of selected year
     const monthsForYear = academicMonths.filter((m) => m.academicYearId === id);
     if (monthsForYear.length > 0) {
-      setSelectedMonthIdState(monthsForYear[0].id);
-      localStorage.setItem('shc_selected_month_id', monthsForYear[0].id);
+      // Find current calendar month or first month
+      const now = new Date();
+      const currentMonthName = now.toLocaleString('default', { month: 'long' }).toLowerCase();
+      const match = monthsForYear.find(
+        (m) => m.year === now.getFullYear() && m.monthName.toLowerCase() === currentMonthName
+      );
+      const chosen = match || monthsForYear[0];
+      setSelectedMonthIdState(chosen.id);
+      localStorage.setItem('shc_selected_month_id', chosen.id);
     }
   };
 
   const setSelectedMonthId = (id: string) => {
     setSelectedMonthIdState(id);
     localStorage.setItem('shc_selected_month_id', id);
+
+    // Sync selectedDate to match this month if date is outside month
+    const targetMonth = academicMonths.find((m) => m.id === id);
+    if (targetMonth && selectedDate) {
+      const parts = selectedDate.split('-');
+      const dateYear = Number(parts[0]);
+      const dateMonthIdx = Number(parts[1]) - 1;
+      const dateMonthName = monthNamesArray[dateMonthIdx];
+
+      if (dateYear !== targetMonth.year || dateMonthName !== targetMonth.monthName.toLowerCase()) {
+        const targetMonthIdx = monthNamesArray.indexOf(targetMonth.monthName.toLowerCase());
+        const mStr = String(targetMonthIdx + 1).padStart(2, '0');
+        const newDate = `${targetMonth.year}-${mStr}-01`;
+        setSelectedDateState(newDate);
+        localStorage.setItem('shc_selected_date', newDate);
+      }
+    }
   };
 
   const setSelectedDate = (date: string) => {
     setSelectedDateState(date);
     localStorage.setItem('shc_selected_date', date);
+    syncMonthFromDate(date, academicMonths);
   };
 
   const refreshAcademicData = async () => {
@@ -62,19 +111,23 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         api.get('/academic-months'),
       ]);
 
-      setAcademicYears(yrRes.data);
-      setAcademicMonths(mRes.data);
+      const yrs = Array.isArray(yrRes.data) ? yrRes.data : [];
+      const mths = Array.isArray(mRes.data) ? mRes.data : [];
+
+      setAcademicYears(yrs);
+      setAcademicMonths(mths);
 
       // Find current active year if not set
-      if (yrRes.data.length > 0 && !selectedYearId) {
-        const currentYr = yrRes.data.find((y: AcademicYear) => y.isCurrent) || yrRes.data[0];
+      if (yrs.length > 0 && !selectedYearId) {
+        const currentYr = yrs.find((y: AcademicYear) => y.isCurrent) || yrs[0];
         setSelectedYearIdState(currentYr.id);
         localStorage.setItem('shc_selected_year_id', currentYr.id);
       }
 
-      if (mRes.data.length > 0 && !selectedMonthId) {
-        setSelectedMonthIdState(mRes.data[0].id);
-        localStorage.setItem('shc_selected_month_id', mRes.data[0].id);
+      // Sync month with current date
+      if (mths.length > 0) {
+        const currentDate = localStorage.getItem('shc_selected_date') || new Date().toISOString().split('T')[0];
+        syncMonthFromDate(currentDate, mths);
       }
     } catch (err) {
       console.error('Failed to load academic context data:', err);

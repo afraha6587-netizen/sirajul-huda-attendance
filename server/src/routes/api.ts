@@ -16,7 +16,7 @@ import { getSubjects, createSubject, updateSubject, deleteSubject } from '../con
 import { getTeachers, createTeacher, updateTeacher, deleteTeacher } from '../controllers/teacherController';
 import { getClassSubjects, assignSubjectToClass, removeSubjectFromClass } from '../controllers/classSubjectController';
 import {
-  saveAttendanceSession, saveDailyAttendance,
+  saveAttendanceSession, saveDailyAttendance, getDailyAttendance,
   getAttendanceSessions, getSessionById, deleteSession,
   getSyllabusLog,
 } from '../controllers/attendanceController';
@@ -104,6 +104,7 @@ router.delete('/class-subjects/:id', requireAdmin, removeSubjectFromClass);
 // Attendance & Syllabus Routes
 router.post('/attendance/session', saveAttendanceSession);
 router.post('/attendance/daily', saveDailyAttendance);
+router.get('/attendance/daily', getDailyAttendance);
 router.get('/attendance/sessions', getAttendanceSessions);
 router.get('/attendance/sessions/:id', getSessionById);
 router.get('/attendance/syllabus-log', getSyllabusLog);
