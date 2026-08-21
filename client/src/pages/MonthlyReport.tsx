@@ -13,6 +13,7 @@ export const MonthlyReport: React.FC = () => {
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [reportData, setReportData] = useState<MonthlyReportData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     Promise.all([api.get('/classes'), api.get('/academic-months')]).then(([clsRes, monthRes]) => {
@@ -27,7 +28,6 @@ export const MonthlyReport: React.FC = () => {
       }
 
       if (mList.length > 0 && !selectedMonthId) {
-        // Find current calendar month e.g. August 2026
         const now = new Date();
         const currentMonthName = now.toLocaleString('default', { month: 'long' }).toLowerCase();
         const matchingMonth = mList.find(
@@ -65,9 +65,37 @@ export const MonthlyReport: React.FC = () => {
     window.print();
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (!selectedClassId || !selectedMonthId) return;
-    window.location.href = `/api/export/excel?classId=${selectedClassId}&monthId=${selectedMonthId}`;
+    setExporting(true);
+    try {
+      const res = await api.get('/export/excel', {
+        params: { classId: selectedClassId, monthId: selectedMonthId },
+        responseType: 'blob',
+      });
+
+      const blob = new Blob([res.data], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+
+      const className = reportData?.className || 'Class';
+      const monthName = reportData?.monthName || 'Month';
+      const year = reportData?.year || '';
+
+      link.setAttribute('download', `Attendance_Report_Class_${className}_${monthName}_${year}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export failed:', err);
+      alert('Failed to export Excel report. Please try again.');
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -121,10 +149,11 @@ export const MonthlyReport: React.FC = () => {
 
             <button
               onClick={handleExportExcel}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-colors"
+              disabled={exporting}
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-colors disabled:opacity-50"
             >
               <FileSpreadsheet className="w-4 h-4" />
-              <span>Export Excel (.xlsx)</span>
+              <span>{exporting ? 'Generating Excel...' : 'Export Excel (.xlsx)'}</span>
             </button>
           </div>
         </div>

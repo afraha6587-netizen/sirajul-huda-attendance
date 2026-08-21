@@ -1,10 +1,12 @@
 import { Request, Response } from 'express';
 import { prisma } from '../utils/prisma';
 
-// Helper to count Sundays & declared holidays in a month and update net working days
-async function recalculateMonthWorkingDays(monthId: string) {
-  const month = await prisma.academicMonth.findUnique({ where: { id: monthId } });
-  if (!month) return;
+// Helper to calculate exact Net Working Days (Total days - Sundays - declared holidays without double counting)
+export async function calculateNetWorkingDaysForMonth(academicMonthId: string): Promise<number> {
+  const month = await prisma.academicMonth.findUnique({
+    where: { id: academicMonthId },
+  });
+  if (!month) return 23;
 
   const monthMap: Record<string, number> = {
     january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
@@ -13,46 +15,44 @@ async function recalculateMonthWorkingDays(monthId: string) {
   const monthIdx = monthMap[month.monthName.toLowerCase()] ?? 6;
   const totalDaysInMonth = new Date(month.year, monthIdx + 1, 0).getDate();
 
-  // Count Sundays in month
-  let sundayCount = 0;
-  for (let day = 1; day <= totalDaysInMonth; day++) {
-    const d = new Date(month.year, monthIdx, day);
-    if (d.getDay() === 0) { // 0 = Sunday
-      sundayCount++;
-    }
-  }
-
-  // Count declared holiday days for this month
+  // Fetch all declared holidays affecting working days for this academic year
   const declaredHolidays = await prisma.institutionHoliday.findMany({
     where: {
-      OR: [
-        { monthId: month.id },
-        {
-          startDate: { lte: `${month.year}-${(monthIdx + 1).toString().padStart(2, '0')}-${totalDaysInMonth}` },
-          endDate: { gte: `${month.year}-${(monthIdx + 1).toString().padStart(2, '0')}-01` },
-        },
-      ],
+      academicYearId: month.academicYearId,
       affectsWorkingDays: true,
     },
   });
 
-  let declaredHolidayDays = 0;
-  declaredHolidays.forEach((h) => {
-    const start = new Date(h.startDate);
-    const end = new Date(h.endDate);
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-    declaredHolidayDays += diffDays;
-  });
+  let workingDaysCount = 0;
 
-  const netWorkingDays = Math.max(0, totalDaysInMonth - sundayCount - declaredHolidayDays);
+  for (let dayNum = 1; dayNum <= totalDaysInMonth; dayNum++) {
+    const dateObj = new Date(month.year, monthIdx, dayNum);
+    const isSunday = dateObj.getDay() === 0; // 0 = Sunday
 
-  await prisma.academicMonth.update({
-    where: { id: month.id },
-    data: { workingDays: netWorkingDays },
-  });
+    const dayStr = dayNum < 10 ? `0${dayNum}` : `${dayNum}`;
+    const monthNumStr = (monthIdx + 1) < 10 ? `0${monthIdx + 1}` : `${monthIdx + 1}`;
+    const fullDateStr = `${month.year}-${monthNumStr}-${dayStr}`;
 
-  return netWorkingDays;
+    // Check if date falls inside any declared holiday range
+    const isDeclaredHoliday = declaredHolidays.some(
+      (h) => fullDateStr >= h.startDate && fullDateStr <= h.endDate
+    );
+
+    // Count day ONLY if it is NOT Sunday and NOT a declared holiday
+    if (!isSunday && !isDeclaredHoliday) {
+      workingDaysCount++;
+    }
+  }
+
+  // Update workingDays in database for consistency
+  if (month.workingDays !== workingDaysCount) {
+    await prisma.academicMonth.update({
+      where: { id: month.id },
+      data: { workingDays: workingDaysCount },
+    });
+  }
+
+  return workingDaysCount;
 }
 
 export const getHolidays = async (req: Request, res: Response) => {
@@ -93,8 +93,12 @@ export const createHoliday = async (req: Request, res: Response) => {
       },
     });
 
-    if (monthId) {
-      await recalculateMonthWorkingDays(monthId);
+    // Recalculate net working days for all months in academic year
+    const months = await prisma.academicMonth.findMany({
+      where: { academicYearId },
+    });
+    for (const m of months) {
+      await calculateNetWorkingDaysForMonth(m.id);
     }
 
     res.status(201).json(holiday);
@@ -111,11 +115,15 @@ export const deleteHoliday = async (req: Request, res: Response) => {
 
     await prisma.institutionHoliday.delete({ where: { id } });
 
-    if (holiday.monthId) {
-      await recalculateMonthWorkingDays(holiday.monthId);
+    // Recalculate net working days for all months in academic year
+    const months = await prisma.academicMonth.findMany({
+      where: { academicYearId: holiday.academicYearId },
+    });
+    for (const m of months) {
+      await calculateNetWorkingDaysForMonth(m.id);
     }
 
-    res.json({ message: 'Holiday removed and working days updated successfully' });
+    res.json({ message: 'Holiday removed and net working days updated successfully' });
   } catch (error: any) {
     res.status(400).json({ error: error.message || 'Failed to delete holiday' });
   }
@@ -124,15 +132,18 @@ export const deleteHoliday = async (req: Request, res: Response) => {
 // Full Month Calendar Grid API Endpoint
 export const getCalendarMonthGrid = async (req: Request, res: Response) => {
   try {
-    const { monthId, yearId } = req.query;
+    const { monthId } = req.query;
 
     let month = monthId
       ? await prisma.academicMonth.findUnique({ where: { id: String(monthId) }, include: { academicYear: true } })
-      : await prisma.academicMonth.findFirst({ orderBy: [{ year: 'desc' }, { id: 'desc' }], include: { academicYear: true } });
+      : await prisma.academicMonth.findFirst({ orderBy: [{ year: 'desc' }], include: { academicYear: true } });
 
     if (!month) {
       return res.status(404).json({ error: 'Academic Month not found' });
     }
+
+    // Ensure net working days are updated
+    const netWorkingDays = await calculateNetWorkingDaysForMonth(month.id);
 
     const monthMap: Record<string, number> = {
       january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
@@ -193,7 +204,7 @@ export const getCalendarMonthGrid = async (req: Request, res: Response) => {
       monthName: month.monthName,
       year: month.year,
       academicYearName: month.academicYear.name,
-      workingDays: month.workingDays,
+      workingDays: netWorkingDays,
       totalDaysInMonth,
       firstDayWeekday,
       sundayCount,

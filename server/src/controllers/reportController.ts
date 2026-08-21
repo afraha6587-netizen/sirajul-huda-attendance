@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { prisma } from '../utils/prisma';
 import { AuthRequest } from '../middleware/auth';
+import { calculateNetWorkingDaysForMonth } from './holidayController';
 
 // Helper function to extract month date range (e.g., July 2026 -> 2026-07-01 to 2026-07-31)
 function getMonthDateBounds(monthName: string, year: number) {
@@ -11,7 +12,7 @@ function getMonthDateBounds(monthName: string, year: number) {
   const monthIdx = monthMap[monthName.toLowerCase()] ?? 6;
   const startDate = new Date(Date.UTC(year, monthIdx, 1));
   const endDate = new Date(Date.UTC(year, monthIdx + 1, 0, 23, 59, 59));
-  
+
   const startStr = startDate.toISOString().split('T')[0];
   const endStr = endDate.toISOString().split('T')[0];
   return { startStr, endStr, startDate, endDate };
@@ -20,7 +21,7 @@ function getMonthDateBounds(monthName: string, year: number) {
 // 1. Core Excel-Like Report Generator
 export const getMonthlyAttendanceReport = async (req: AuthRequest, res: Response) => {
   try {
-    const { classId, monthId, academicYearId } = req.query;
+    const { classId, monthId } = req.query;
 
     if (!classId || !monthId) {
       return res.status(400).json({ error: 'Class and Academic Month are required' });
@@ -42,6 +43,9 @@ export const getMonthlyAttendanceReport = async (req: AuthRequest, res: Response
     if (!cls || !month) {
       return res.status(404).json({ error: 'Class or Academic Month not found' });
     }
+
+    // Dynamic Net Working Days Calculation
+    const totalWorkingDays = await calculateNetWorkingDaysForMonth(month.id);
 
     const threshold = settings?.attendanceThreshold || 75.0;
     const { startStr, endStr } = getMonthDateBounds(month.monthName, month.year);
@@ -69,7 +73,7 @@ export const getMonthlyAttendanceReport = async (req: AuthRequest, res: Response
     const subjectSummaries = await Promise.all(
       classSubjects.map(async (cs, index) => {
         const config = cs.subjectMonthlyConfigs[0];
-        const available = config ? config.availableClasses : month.workingDays;
+        const available = config ? config.availableClasses : totalWorkingDays;
 
         // Taken class count (count of distinct sessions conducted)
         const takenCount = await prisma.attendanceSession.count({
@@ -96,7 +100,6 @@ export const getMonthlyAttendanceReport = async (req: AuthRequest, res: Response
     );
 
     const grandTotalTaken = subjectSummaries.reduce((sum, s) => sum + s.takenClasses, 0);
-    const totalWorkingDays = month.workingDays;
 
     // Build Student Row Matrix
     const studentRows = await Promise.all(
@@ -106,7 +109,6 @@ export const getMonthlyAttendanceReport = async (req: AuthRequest, res: Response
         // Subject Breakdown for Student
         const subjectStats = await Promise.all(
           subjectSummaries.map(async (subj) => {
-            // Count present attendance records for student in this classSubject & date range
             const attendedCount = await prisma.attendanceRecord.count({
               where: {
                 studentId: student.id,
