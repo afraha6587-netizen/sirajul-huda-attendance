@@ -15,17 +15,20 @@ import {
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import api from '../utils/api';
 import { Navbar } from '../components/Navbar';
+import { useAcademic } from '../context/AcademicContext';
 
 export const Dashboard: React.FC = () => {
+  const { selectedMonthId } = useAcademic();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get('/reports/dashboard')
+    setLoading(true);
+    api.get('/reports/dashboard', { params: { monthId: selectedMonthId } })
       .then((res) => setStats(res.data))
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
-  }, []);
+  }, [selectedMonthId]);
 
   if (loading) {
     return (
@@ -76,7 +79,7 @@ export const Dashboard: React.FC = () => {
           <div>
             <div className="flex items-center gap-2 text-brand-200 text-xs font-semibold uppercase tracking-wider">
               <Calendar className="w-4 h-4" />
-              <span>Active Academic Term: {stats?.activeMonthName || 'July 2026'}</span>
+              <span>Active Academic Term: {stats?.activeMonthName || 'August 2026'}</span>
             </div>
             <h2 className="text-xl font-extrabold mt-1">Ready to mark today's attendance?</h2>
             <p className="text-xs text-brand-100 mt-1 max-w-xl">
