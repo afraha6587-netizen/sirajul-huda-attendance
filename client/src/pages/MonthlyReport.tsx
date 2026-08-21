@@ -3,23 +3,42 @@ import { Download, Printer, FileSpreadsheet, Filter, Sparkles, AlertTriangle } f
 import api from '../utils/api';
 import { Class, AcademicMonth, MonthlyReportData } from '../types';
 import { Navbar } from '../components/Navbar';
+import { useAcademic } from '../context/AcademicContext';
 
 export const MonthlyReport: React.FC = () => {
+  const { selectedMonthId, setSelectedMonthId } = useAcademic();
   const [classes, setClasses] = useState<Class[]>([]);
   const [academicMonths, setAcademicMonths] = useState<AcademicMonth[]>([]);
 
   const [selectedClassId, setSelectedClassId] = useState<string>('');
-  const [selectedMonthId, setSelectedMonthId] = useState<string>('');
   const [reportData, setReportData] = useState<MonthlyReportData | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     Promise.all([api.get('/classes'), api.get('/academic-months')]).then(([clsRes, monthRes]) => {
-      setClasses(clsRes.data);
-      setAcademicMonths(monthRes.data);
+      const clsList = Array.isArray(clsRes.data) ? clsRes.data : [];
+      const mList = Array.isArray(monthRes.data) ? monthRes.data : [];
 
-      if (clsRes.data.length > 0) setSelectedClassId(clsRes.data[0].id);
-      if (monthRes.data.length > 0) setSelectedMonthId(monthRes.data[0].id);
+      setClasses(clsList);
+      setAcademicMonths(mList);
+
+      if (clsList.length > 0 && !selectedClassId) {
+        setSelectedClassId(clsList[0].id);
+      }
+
+      if (mList.length > 0 && !selectedMonthId) {
+        // Find current calendar month e.g. August 2026
+        const now = new Date();
+        const currentMonthName = now.toLocaleString('default', { month: 'long' }).toLowerCase();
+        const matchingMonth = mList.find(
+          (m: AcademicMonth) => m.monthName.toLowerCase() === currentMonthName && m.year === now.getFullYear()
+        );
+        if (matchingMonth) {
+          setSelectedMonthId(matchingMonth.id);
+        } else {
+          setSelectedMonthId(mList[0].id);
+        }
+      }
     });
   }, []);
 

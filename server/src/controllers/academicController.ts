@@ -2,6 +2,12 @@ import { Response } from 'express';
 import { prisma } from '../utils/prisma';
 import { AuthRequest } from '../middleware/auth';
 
+// Helper to sort academic months chronologically (June to May)
+const monthOrderMap: Record<string, number> = {
+  june: 1, july: 2, august: 3, september: 4, october: 5, november: 6,
+  december: 7, january: 8, february: 9, march: 10, april: 11, may: 12,
+};
+
 // Academic Years
 export const getAcademicYears = async (_req: AuthRequest, res: Response) => {
   try {
@@ -60,15 +66,22 @@ export const updateAcademicYear = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// Academic Months
+// Academic Months (Chronologically Sorted)
 export const getAcademicMonths = async (req: AuthRequest, res: Response) => {
   try {
     const { yearId } = req.query;
     const months = await prisma.academicMonth.findMany({
       where: yearId ? { academicYearId: String(yearId) } : undefined,
       include: { academicYear: true },
-      orderBy: [{ year: 'asc' }, { id: 'asc' }],
     });
+
+    months.sort((a, b) => {
+      if (a.year !== b.year) return a.year - b.year;
+      const orderA = monthOrderMap[a.monthName.toLowerCase()] || 99;
+      const orderB = monthOrderMap[b.monthName.toLowerCase()] || 99;
+      return orderA - orderB;
+    });
+
     res.json(months);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch academic months' });
