@@ -1,13 +1,28 @@
-import React, { useState } from 'react';
-import { Upload, Download, FileSpreadsheet, CheckCircle2, AlertCircle, Sparkles, FileText, ArrowRight } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Upload, Download, FileSpreadsheet, CheckCircle2, AlertCircle, Sparkles, FileText, ArrowRight, GraduationCap } from 'lucide-react';
 import api from '../utils/api';
+import { Class } from '../types';
 import { Navbar } from '../components/Navbar';
 
 export const ImportExport: React.FC = () => {
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [selectedClassName, setSelectedClassName] = useState<string>('D-3');
   const [file, setFile] = useState<File | null>(null);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<any | null>(null);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    api.get('/classes')
+      .then((res) => {
+        const clsList = Array.isArray(res.data) ? res.data : [];
+        setClasses(clsList);
+        if (clsList.length > 0) {
+          setSelectedClassName(clsList[0].name);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -27,27 +42,27 @@ export const ImportExport: React.FC = () => {
 
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('className', selectedClassName);
 
     try {
       const res = await api.post('/import/excel', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setResult(res.data);
-      alert('Excel batch import completed successfully!');
+      alert(`Success! ${res.data.successCount || res.data.count || 0} students imported into database.`);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to import Excel file. Please ensure columns match template.');
+      setError(err.response?.data?.error || 'Failed to import Excel file. Please check file format.');
     } finally {
       setImporting(false);
     }
   };
 
   const handleDownloadSample = () => {
-    // Generate simple sample CSV template for download
     const csvContent =
       'data:text/csv;charset=utf-8,' +
-      'RegisterNumber,RollNumber,StudentName,ClassName,AdmissionNo,Phone,ParentPhone\n' +
-      '201,1,MOHAMMED RAYAN,D-3,ADM202601,9876543210,9876543211\n' +
-      '202,2,FATHIMA ZAHRA,D-3,ADM202602,9876543212,9876543213\n';
+      'RegisterNumber,RollNumber,StudentName,ClassName,ParentPhone\n' +
+      '201,1,MOHAMMED RAYAN,D-3,9876543210\n' +
+      '202,2,FATHIMA ZAHRA,D-3,9876543211\n';
 
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
@@ -76,6 +91,25 @@ export const ImportExport: React.FC = () => {
               </div>
             </div>
 
+            {/* Target Class Selection */}
+            <div className="flex items-center justify-between bg-slate-50 p-3 rounded-2xl border border-slate-200">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
+                <GraduationCap className="w-4 h-4 text-brand-600" />
+                <span>Target Class:</span>
+              </div>
+              <select
+                value={selectedClassName}
+                onChange={(e) => setSelectedClassName(e.target.value)}
+                className="px-3 py-1.5 rounded-xl bg-white border border-slate-300 text-xs font-extrabold text-brand-700 focus:outline-none"
+              >
+                {classes.map((c) => (
+                  <option key={c.id} value={c.name}>
+                    Class {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <button
               onClick={handleDownloadSample}
               className="w-full py-2.5 px-4 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center gap-2 transition-colors"
@@ -88,7 +122,7 @@ export const ImportExport: React.FC = () => {
               <div className="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center hover:border-brand-500 transition-colors bg-slate-50/50">
                 <Upload className="w-8 h-8 mx-auto text-slate-400 mb-2" />
                 <p className="text-xs font-bold text-slate-700">Drag & drop your Excel file here or browse</p>
-                <p className="text-[11px] text-slate-400 mt-1">Columns: RegisterNumber, RollNumber, StudentName, ClassName, ParentPhone</p>
+                <p className="text-[11px] text-slate-400 mt-1">Accepts any header: Name, Reg No, Roll No, Class</p>
 
                 <input
                   type="file"
@@ -108,7 +142,7 @@ export const ImportExport: React.FC = () => {
               {result && (
                 <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Imported {result.count || 'all'} student records successfully!</span>
+                  <span>Imported {result.successCount || result.count || 0} student records into database successfully!</span>
                 </div>
               )}
 

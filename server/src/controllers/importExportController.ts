@@ -3,6 +3,24 @@ import XLSX from 'xlsx';
 import { prisma } from '../utils/prisma';
 import { AuthRequest } from '../middleware/auth';
 
+// Helper to look up key in object case-insensitively with flexible column names
+function getRowValue(row: Record<string, any>, possibleKeys: string[]): string {
+  const rowKeys = Object.keys(row);
+  for (const key of possibleKeys) {
+    // Exact match
+    if (row[key] !== undefined && row[key] !== null) {
+      return String(row[key]).trim();
+    }
+    // Case-insensitive match or substring match without spaces/underscores
+    const cleanTarget = key.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const foundKey = rowKeys.find((k) => k.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanTarget);
+    if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null) {
+      return String(row[foundKey]).trim();
+    }
+  }
+  return '';
+}
+
 // Export Monthly Attendance Report to Excel
 export const exportMonthlyReportToExcel = async (req: AuthRequest, res: Response) => {
   try {
@@ -21,7 +39,6 @@ export const exportMonthlyReportToExcel = async (req: AuthRequest, res: Response
       return res.status(404).json({ error: 'Class or Month not found' });
     }
 
-    // Fetch dynamic report data using report logic
     const monthMap: Record<string, number> = {
       january: 0, february: 1, march: 2, april: 3, may: 4, june: 5,
       july: 6, august: 7, september: 8, october: 9, november: 10, december: 11,
@@ -70,14 +87,10 @@ export const exportMonthlyReportToExcel = async (req: AuthRequest, res: Response
 
     const grandTotalTaken = subjectSummaries.reduce((sum, s) => sum + s.takenClasses, 0);
 
-    // Build Worksheet Rows
     const excelRows: any[][] = [];
-
-    // Header Title
-    excelRows.push([`${settings?.collegeName || 'Islamic Academic College'} - CLASS ${cls.name} ATTENDANCE REPORT (${month.monthName.toUpperCase()} ${month.year})`]);
+    excelRows.push([`${settings?.collegeName || 'Sirajul Huda College'} - CLASS ${cls.name} ATTENDANCE REPORT (${month.monthName.toUpperCase()} ${month.year})`]);
     excelRows.push([]);
 
-    // Student Table Headers
     const mainHeaders = ['SL NO', 'R.NO', 'NAME'];
     for (const sub of subjectSummaries) {
       mainHeaders.push(sub.subjectName, '%');
@@ -85,7 +98,6 @@ export const exportMonthlyReportToExcel = async (req: AuthRequest, res: Response
     mainHeaders.push('GRAND TOTAL ATTENDED', 'OVERALL %', 'WORKING DAYS', 'PRESENT DAYS', 'MONTHLY LEAVE', 'DAY WISE %');
     excelRows.push(mainHeaders);
 
-    // Student Data Rows
     for (let i = 0; i < students.length; i++) {
       const student = students[i];
       let grandTotalAttended = 0;
@@ -144,7 +156,7 @@ export const exportMonthlyReportToExcel = async (req: AuthRequest, res: Response
   }
 };
 
-// Import Data from Excel File
+// Import Data from Excel File (Ultra Flexible Header Matching)
 export const importExcelData = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.file) {
@@ -160,23 +172,37 @@ export const importExcelData = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Uploaded file contains no valid data rows' });
     }
 
+    const targetDefaultClass = String(req.body.className || 'D-3').trim();
     const importedStudents: any[] = [];
     const errors: string[] = [];
     let successCount = 0;
 
     for (let index = 0; index < jsonData.length; index++) {
       const row = jsonData[index];
-      const registerNumber = String(row['Register Number'] || row['R.NO'] || row['RegNo'] || row['RegisterNo'] || '').trim();
-      const name = String(row['Name'] || row['Student Name'] || row['NAME'] || '').trim();
-      const className = String(row['Class'] || row['CLASS'] || '').trim();
-      const rollNumber = Number(row['Roll Number'] || row['RollNo'] || row['SL NO'] || index + 1);
 
-      if (!registerNumber || !name || !className) {
-        errors.push(`Row ${index + 2}: Missing required fields (Register Number, Name, or Class)`);
+      // Flexible column key resolution
+      let name = getRowValue(row, ['StudentName', 'Student Name', 'Name', 'NAME', 'Full Name', 'Student_Name']);
+      let registerNumber = getRowValue(row, [
+        'RegisterNumber', 'Register Number', 'RegNo', 'Reg No', 'RegisterNo', 'R.NO', 'Reg_No',
+        'Registration Number', 'ADM', 'AdmissionNo', 'Admission Number', 'ID',
+      ]);
+      let className = getRowValue(row, ['ClassName', 'Class Name', 'Class', 'CLASS', 'Class_Name', 'Grade', 'Batch']);
+      let rollNumberStr = getRowValue(row, ['RollNumber', 'Roll Number', 'RollNo', 'Roll No', 'SL NO', 'Sl No', 'R.NO', 'Roll']);
+      let parentPhone = getRowValue(row, ['ParentPhone', 'Parent Phone', 'Phone', 'Mobile', 'Contact', 'Parent Contact']);
+
+      // Fallbacks
+      if (!className) className = targetDefaultClass;
+      if (!name) {
+        errors.push(`Row ${index + 2}: Missing student name`);
         continue;
       }
+      if (!registerNumber) {
+        registerNumber = `SHC-${className.replace(/[^a-zA-Z0-9]/g, '')}-${String(index + 1).padStart(3, '0')}`;
+      }
 
-      // Check or create class
+      const rollNumber = Number(rollNumberStr) || index + 1;
+
+      // Find or create class
       let cls = await prisma.class.findFirst({ where: { name: className } });
       if (!cls) {
         let currentYear = await prisma.academicYear.findFirst({ where: { isCurrent: true } });
@@ -190,22 +216,23 @@ export const importExcelData = async (req: AuthRequest, res: Response) => {
         });
       }
 
-      // Upsert student
+      // Upsert student into database
       try {
         const student = await prisma.student.upsert({
           where: { registerNumber },
-          update: { name, rollNumber, classId: cls.id },
-          create: { registerNumber, rollNumber, name, classId: cls.id, active: true },
+          update: { name, rollNumber, classId: cls.id, parentPhone: parentPhone || undefined },
+          create: { registerNumber, rollNumber, name, classId: cls.id, parentPhone: parentPhone || undefined, active: true },
         });
         importedStudents.push(student);
         successCount++;
       } catch (err: any) {
-        errors.push(`Row ${index + 2}: Error importing student ${registerNumber}: ${err.message}`);
+        errors.push(`Row ${index + 2}: Error importing ${name} (${registerNumber}): ${err.message}`);
       }
     }
 
     res.json({
-      message: `Import completed. ${successCount} students processed successfully.`,
+      message: `Import completed. ${successCount} students added to database successfully!`,
+      count: successCount,
       successCount,
       errorsCount: errors.length,
       errors,
