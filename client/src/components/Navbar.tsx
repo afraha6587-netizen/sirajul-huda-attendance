@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Calendar, ChevronDown, Sparkles, Moon } from 'lucide-react';
+import React from 'react';
+import { Calendar } from 'lucide-react';
 import { useAcademic } from '../context/AcademicContext';
 import { getHijriDateString } from '../utils/hijri';
 
@@ -20,10 +20,10 @@ export const Navbar: React.FC<NavbarProps> = ({ title, subtitle }) => {
     setSelectedDate,
   } = useAcademic();
 
-  const [showDatePicker, setShowDatePicker] = useState(false);
-
-  const selectedYearObj = academicYears.find((y) => y.id === selectedYearId);
-  const selectedMonthObj = academicMonths.find((m) => m.id === selectedMonthId);
+  const filteredMonths = academicMonths.filter(
+    (m) => !selectedYearId || m.academicYearId === selectedYearId
+  );
+  const displayMonths = filteredMonths.length > 0 ? filteredMonths : academicMonths;
 
   return (
     <header className="bg-white border-b border-slate-200/80 px-6 py-4 sticky top-0 z-20 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -35,7 +35,7 @@ export const Navbar: React.FC<NavbarProps> = ({ title, subtitle }) => {
 
       {/* Global Academic & Date Selector Bar */}
       <div className="flex flex-wrap items-center gap-3">
-        {/* Academic Year Badge / Dropdown */}
+        {/* Academic Year Dropdown */}
         <div className="flex items-center gap-2 bg-slate-50 border border-slate-200/90 rounded-xl px-3 py-1.5">
           <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Year:</span>
           <select
@@ -43,11 +43,15 @@ export const Navbar: React.FC<NavbarProps> = ({ title, subtitle }) => {
             onChange={(e) => setSelectedYearId(e.target.value)}
             className="bg-transparent text-xs font-bold text-brand-700 focus:outline-none cursor-pointer"
           >
-            {academicYears.map((yr) => (
-              <option key={yr.id} value={yr.id}>
-                {yr.name} {yr.isCurrent ? '(Active)' : ''}
-              </option>
-            ))}
+            {academicYears.length === 0 ? (
+              <option value="">2026-2027 (Active)</option>
+            ) : (
+              academicYears.map((yr) => (
+                <option key={yr.id} value={yr.id}>
+                  {yr.name} {yr.isCurrent ? '(Active)' : ''}
+                </option>
+              ))
+            )}
           </select>
         </div>
 
@@ -59,13 +63,15 @@ export const Navbar: React.FC<NavbarProps> = ({ title, subtitle }) => {
             onChange={(e) => setSelectedMonthId(e.target.value)}
             className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
           >
-            {academicMonths
-              .filter((m) => !selectedYearId || m.academicYearId === selectedYearId)
-              .map((m) => (
+            {displayMonths.length === 0 ? (
+              <option value="">August 2026</option>
+            ) : (
+              displayMonths.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.monthName} {m.year}
                 </option>
-              ))}
+              ))
+            )}
           </select>
         </div>
 

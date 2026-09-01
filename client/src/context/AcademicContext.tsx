@@ -55,6 +55,9 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (match) {
       setSelectedMonthIdState(match.id);
       localStorage.setItem('shc_selected_month_id', match.id);
+    } else if (monthsList.length > 0) {
+      setSelectedMonthIdState(monthsList[0].id);
+      localStorage.setItem('shc_selected_month_id', monthsList[0].id);
     }
   };
 
@@ -64,7 +67,6 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const monthsForYear = academicMonths.filter((m) => m.academicYearId === id);
     if (monthsForYear.length > 0) {
-      // Find current calendar month or first month
       const now = new Date();
       const currentMonthName = now.toLocaleString('default', { month: 'long' }).toLowerCase();
       const match = monthsForYear.find(
@@ -80,7 +82,6 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setSelectedMonthIdState(id);
     localStorage.setItem('shc_selected_month_id', id);
 
-    // Sync selectedDate to match this month if date is outside month
     const targetMonth = academicMonths.find((m) => m.id === id);
     if (targetMonth && selectedDate) {
       const parts = selectedDate.split('-');
@@ -117,14 +118,15 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setAcademicYears(yrs);
       setAcademicMonths(mths);
 
-      // Find current active year if not set
-      if (yrs.length > 0 && !selectedYearId) {
-        const currentYr = yrs.find((y: AcademicYear) => y.isCurrent) || yrs[0];
-        setSelectedYearIdState(currentYr.id);
-        localStorage.setItem('shc_selected_year_id', currentYr.id);
+      // Validate & reset selectedYearId if invalid or missing
+      let validYear = yrs.find((y: AcademicYear) => y.id === selectedYearId);
+      if (!validYear && yrs.length > 0) {
+        validYear = yrs.find((y: AcademicYear) => y.isCurrent) || yrs[0];
+        setSelectedYearIdState(validYear.id);
+        localStorage.setItem('shc_selected_year_id', validYear.id);
       }
 
-      // Sync month with current date
+      // Validate & sync month
       if (mths.length > 0) {
         const currentDate = localStorage.getItem('shc_selected_date') || new Date().toISOString().split('T')[0];
         syncMonthFromDate(currentDate, mths);
