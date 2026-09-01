@@ -20,7 +20,7 @@ export async function cleanResetDatabase() {
 }
 
 export async function ensureAdminSeeded() {
-  console.log('🧹 Initializing clean production database for Sirajul Huda College...');
+  console.log('🧹 Checking production database seeding for Sirajul Huda College...');
 
   // 1. Create Initial System Settings with official college branding
   const existingSettings = await prisma.systemSettings.findFirst();
@@ -179,13 +179,13 @@ export async function ensureAdminSeeded() {
     });
   }
 
-  console.log('✨ Clean database initialized with standard classes, subjects, Usthads, and class-subject assignments!');
+  console.log('✨ System database verified cleanly without removing existing student or attendance records!');
 }
 
 if (require.main === module) {
-  cleanResetDatabase()
+  ensureAdminSeeded()
     .catch((e) => {
-      console.error('❌ Reset error:', e);
+      console.error('❌ Seeding error:', e);
       process.exit(1);
     })
     .finally(async () => {

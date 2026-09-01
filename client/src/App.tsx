@@ -24,6 +24,7 @@ import { StudentsAtRisk } from './pages/StudentsAtRisk';
 import { ImportExport } from './pages/ImportExport';
 import { UsersPage } from './pages/UsersPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { DatabaseViewerPage } from './pages/DatabaseViewerPage';
 
 const ProtectedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -185,6 +186,15 @@ export const App: React.FC = () => {
               element={
                 <ProtectedLayout>
                   <ImportExport />
+                </ProtectedLayout>
+              }
+            />
+
+            <Route
+              path="/database"
+              element={
+                <ProtectedLayout>
+                  <DatabaseViewerPage />
                 </ProtectedLayout>
               }
             />

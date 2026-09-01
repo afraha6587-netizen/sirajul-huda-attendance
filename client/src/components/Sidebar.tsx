@@ -20,6 +20,7 @@ import {
   Palmtree,
   FileText,
   Calendar,
+  Database,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
@@ -53,6 +54,7 @@ export const Sidebar: React.FC = () => {
     { label: 'Monthly Report', path: '/monthly-report', icon: FileSpreadsheet },
     { label: 'Students at Risk', path: '/at-risk', icon: AlertTriangle },
     { label: 'Import / Export', path: '/import-export', icon: Upload },
+    { label: 'Database Inspector', path: '/database', icon: Database },
     { label: 'User Accounts', path: '/users', icon: Shield },
     { label: 'Settings', path: '/settings', icon: Settings },
   ];

@@ -25,6 +25,7 @@ import { exportMonthlyReportToExcel, importExcelData } from '../controllers/impo
 import { getPublicStudentAttendance, seedSystem, cleanResetSystem } from '../controllers/publicController';
 import { getUsers, createUser, updateUser, deleteUser } from '../controllers/userController';
 import { getHolidays, createHoliday, deleteHoliday, getCalendarMonthGrid } from '../controllers/holidayController';
+import { getDatabaseOverview, getDatabaseTableData, exportFullDatabaseBackup } from '../controllers/databaseController';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
 
 const router = Router();
@@ -40,6 +41,11 @@ router.get('/public/clean-reset', cleanResetSystem);
 // 2. AUTHENTICATED ROUTES
 router.use(authenticateToken);
 router.get('/auth/me', me);
+
+// Interactive Database Inspector & Backup Routes (Admin Only)
+router.get('/database/overview', requireAdmin, getDatabaseOverview);
+router.get('/database/table/:tableName', requireAdmin, getDatabaseTableData);
+router.get('/database/backup', requireAdmin, exportFullDatabaseBackup);
 
 // Interactive Month Calendar Grid API Route
 router.get('/calendar/month-grid', getCalendarMonthGrid);
