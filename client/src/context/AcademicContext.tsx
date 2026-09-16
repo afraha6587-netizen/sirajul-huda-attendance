@@ -106,30 +106,40 @@ export const AcademicProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const refreshAcademicData = async () => {
+    const hasToken = Boolean(localStorage.getItem('token'));
     try {
-      const [yrRes, mRes] = await Promise.all([
-        api.get('/academic-years'),
-        api.get('/academic-months'),
-      ]);
+      if (hasToken) {
+        const [yrRes, mRes] = await Promise.all([
+          api.get('/academic-years').catch(() => ({ data: [] })),
+          api.get('/academic-months').catch(() => ({ data: [] })),
+        ]);
 
-      const yrs = Array.isArray(yrRes.data) ? yrRes.data : [];
-      const mths = Array.isArray(mRes.data) ? mRes.data : [];
+        const yrs = Array.isArray(yrRes.data) ? yrRes.data : [];
+        const mths = Array.isArray(mRes.data) ? mRes.data : [];
 
-      setAcademicYears(yrs);
-      setAcademicMonths(mths);
+        setAcademicYears(yrs);
+        setAcademicMonths(mths);
 
-      // Validate & reset selectedYearId if invalid or missing
-      let validYear = yrs.find((y: AcademicYear) => y.id === selectedYearId);
-      if (!validYear && yrs.length > 0) {
-        validYear = yrs.find((y: AcademicYear) => y.isCurrent) || yrs[0];
-        setSelectedYearIdState(validYear.id);
-        localStorage.setItem('shc_selected_year_id', validYear.id);
-      }
+        let validYear = yrs.find((y: AcademicYear) => y.id === selectedYearId);
+        if (!validYear && yrs.length > 0) {
+          validYear = yrs.find((y: AcademicYear) => y.isCurrent) || yrs[0];
+          setSelectedYearIdState(validYear.id);
+          localStorage.setItem('shc_selected_year_id', validYear.id);
+        }
 
-      // Validate & sync month
-      if (mths.length > 0) {
-        const currentDate = localStorage.getItem('shc_selected_date') || new Date().toISOString().split('T')[0];
-        syncMonthFromDate(currentDate, mths);
+        if (mths.length > 0) {
+          const currentDate = localStorage.getItem('shc_selected_date') || new Date().toISOString().split('T')[0];
+          syncMonthFromDate(currentDate, mths);
+        }
+      } else {
+        // Fallback for public visitors
+        const mRes = await api.get('/public/academic-months').catch(() => ({ data: [] }));
+        const mths = Array.isArray(mRes.data) ? mRes.data : [];
+        setAcademicMonths(mths);
+        if (mths.length > 0) {
+          const currentDate = localStorage.getItem('shc_selected_date') || new Date().toISOString().split('T')[0];
+          syncMonthFromDate(currentDate, mths);
+        }
       }
     } catch (err) {
       console.error('Failed to load academic context data:', err);
