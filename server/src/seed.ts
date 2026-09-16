@@ -3,20 +3,36 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+export async function removePreseededTeachersAndSubjects() {
+  console.log('🧹 Removing pre-seeded teachers and subjects...');
+
+  // Delete all class-subject assignments, subjects, and teachers so admin adds them cleanly
+  await prisma.classSubject.deleteMany();
+  await prisma.subjectMonthlyConfig.deleteMany();
+  await prisma.subject.deleteMany();
+  await prisma.teacher.deleteMany();
+
+  console.log('✨ All sample teachers and subjects removed! Admin can add teachers and subjects cleanly.');
+}
+
 export async function cleanResetDatabase() {
   console.log('🧹 Performing complete data wipe for Sirajul Huda College...');
 
-  // Delete all attendance data, logs, and student roster for a clean website slate
+  // Delete all attendance data, logs, student roster, subjects, and teachers
   await prisma.auditLog.deleteMany();
   await prisma.dailyAttendance.deleteMany();
   await prisma.attendanceRecord.deleteMany();
   await prisma.attendanceSession.deleteMany();
   await prisma.student.deleteMany();
+  await prisma.classSubject.deleteMany();
+  await prisma.subjectMonthlyConfig.deleteMany();
+  await prisma.subject.deleteMany();
+  await prisma.teacher.deleteMany();
 
-  // Ensure base structure exists
+  // Ensure base structure exists (Classes & Super Admin only)
   await ensureAdminSeeded();
 
-  console.log('✨ Database cleanly reset with 0 attendance logs and 0 students!');
+  console.log('✨ Database cleanly reset with 0 attendance logs, 0 students, 0 subjects, and 0 teachers!');
 }
 
 export async function ensureAdminSeeded() {
@@ -84,11 +100,10 @@ export async function ensureAdminSeeded() {
 
   // 4. Create Standard College Classes (D-3, D-1, HS-1, HS-2) if missing
   const classNames = ['D-3', 'D-1', 'HS-1', 'HS-2'];
-  const createdClasses: any[] = [];
   for (const className of classNames) {
     let cls = await prisma.class.findFirst({ where: { name: className } });
     if (!cls) {
-      cls = await prisma.class.create({
+      await prisma.class.create({
         data: {
           name: className,
           academicYearId: currentYear.id,
@@ -96,76 +111,9 @@ export async function ensureAdminSeeded() {
         },
       });
     }
-    createdClasses.push(cls);
   }
 
-  // 5. Create Standard College Subjects if missing
-  const subjectsData = [
-    { name: 'Tafsir Al Jalalayn', arabicName: 'تفسير الجلالين', code: 'SUB-TAFSIR' },
-    { name: 'Fath Al Mubeen', arabicName: 'فتح المعين', code: 'SUB-FIQH' },
-    { name: 'Arabic Grammar', arabicName: 'النحو والصرف', code: 'SUB-ARABIC' },
-    { name: 'English Literature', arabicName: 'اللغة الإنجليزية', code: 'SUB-ENG' },
-  ];
-
-  const createdSubjects: any[] = [];
-  for (const subData of subjectsData) {
-    let sub = await prisma.subject.findFirst({ where: { code: subData.code } });
-    if (!sub) {
-      sub = await prisma.subject.create({ data: subData });
-    }
-    createdSubjects.push(sub);
-  }
-
-  // 6. Create Standard Teachers / Usthads if missing
-  const teachersData = [
-    { name: 'Usthad Ahmad Al-Huda', code: 'TCH-001' },
-    { name: 'Usthad Muhammed Faizal', code: 'TCH-002' },
-    { name: 'Usthad Ibrahim Khalil', code: 'TCH-003' },
-  ];
-
-  const createdTeachers: any[] = [];
-  for (const tData of teachersData) {
-    let teacher = await prisma.teacher.findFirst({ where: { code: tData.code } });
-    if (!teacher) {
-      teacher = await prisma.teacher.create({ data: tData });
-    }
-    createdTeachers.push(teacher);
-  }
-
-  // 7. Create Class-Subject-Teacher Assignments if missing
-  const assignmentCount = await prisma.classSubject.count();
-  if (assignmentCount === 0 && createdClasses.length > 0 && createdSubjects.length > 0 && createdTeachers.length > 0) {
-    for (const cls of createdClasses) {
-      await prisma.classSubject.create({
-        data: {
-          classId: cls.id,
-          subjectId: createdSubjects[0].id,
-          teacherId: createdTeachers[0].id,
-          active: true,
-        },
-      });
-
-      await prisma.classSubject.create({
-        data: {
-          classId: cls.id,
-          subjectId: createdSubjects[1].id,
-          teacherId: createdTeachers[1].id,
-          active: true,
-        },
-      });
-
-      await prisma.classSubject.create({
-        data: {
-          classId: cls.id,
-          subjectId: createdSubjects[2].id,
-          teacherId: createdTeachers[2].id,
-          active: true,
-        },
-      });
-    }
-  }
-
-  // 8. Create Initial Super Admin Account if missing
+  // 5. Create Initial Super Admin Account if missing
   const adminPasswordHash = await bcrypt.hash('Admin@123456', 10);
   const existingAdmin = await prisma.user.findUnique({ where: { email: 'admin@college.edu' } });
   if (!existingAdmin) {
@@ -179,11 +127,14 @@ export async function ensureAdminSeeded() {
     });
   }
 
-  console.log('✨ System database verified cleanly without removing existing student or attendance records!');
+  console.log('✨ System database verified cleanly with 0 pre-seeded sample teachers or subjects!');
 }
 
 if (require.main === module) {
   ensureAdminSeeded()
+    .then(async () => {
+      await removePreseededTeachersAndSubjects();
+    })
     .catch((e) => {
       console.error('❌ Seeding error:', e);
       process.exit(1);
