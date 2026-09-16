@@ -13,7 +13,22 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// API Root
+// Root Welcome Route (Fixes 'Cannot GET /' in browser)
+app.get('/', (_req, res) => {
+  res.json({
+    institution: 'Sirajul Huda College of Science and Integrated Studies, Nadapuram',
+    system: 'College Attendance Management System API',
+    status: 'ONLINE & HEALTHY',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      portal: '/api/public/student-attendance',
+      academicMonths: '/api/public/academic-months',
+      login: '/api/auth/login',
+    },
+  });
+});
+
+// API Routes
 app.use('/api', apiRouter);
 
 // Health check
