@@ -31,8 +31,11 @@ const ProtectedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white text-xs font-bold">
-        Authenticating session...
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+        <div className="flex items-center gap-3 text-brand-400 font-bold text-xs animate-pulse bg-slate-900 px-6 py-4 rounded-2xl border border-slate-800 shadow-2xl">
+          <div className="w-5 h-5 border-2 border-brand-400 border-t-transparent rounded-full animate-spin"></div>
+          <span>Loading Sirajul Huda Attendance System...</span>
+        </div>
       </div>
     );
   }
@@ -217,7 +220,7 @@ export const App: React.FC = () => {
               }
             />
 
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
         </Router>
       </AcademicProvider>
