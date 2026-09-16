@@ -30,8 +30,13 @@ export const getDatabaseOverview = async (_req: AuthRequest, res: Response) => {
       prisma.systemSettings.findFirst(),
     ]);
 
+    const dbUrl = process.env.DATABASE_URL || '';
+    let databaseType = 'MySQL / MariaDB (XAMPP Connected)';
+    if (dbUrl.includes('postgres')) databaseType = 'PostgreSQL (Cloud Persistent)';
+    else if (dbUrl.includes('sqlite')) databaseType = 'SQLite (Local File)';
+
     res.json({
-      databaseType: process.env.DATABASE_URL?.startsWith('postgres') ? 'PostgreSQL (Cloud Persistent)' : 'SQLite (Local Persistent)',
+      databaseType,
       status: 'ONLINE & HEALTHY',
       lastBackupTime: new Date().toISOString(),
       counts: {
