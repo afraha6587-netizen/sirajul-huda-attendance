@@ -99,9 +99,7 @@ export const MobileBottomNav: React.FC = () => {
             <div>
               <div className="flex items-center justify-between pb-4 border-b border-slate-800">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-teal-600 flex items-center justify-center text-white font-black text-sm">
-                    🎓
-                  </div>
+                  <img src="/logo.png" alt="Sirajul Huda Logo" className="w-8 h-8 object-contain rounded-lg bg-white p-0.5 shadow-xs shrink-0" />
                   <div>
                     <h3 className="text-white font-extrabold text-xs">Sirajul Huda</h3>
                     <p className="text-[10px] text-teal-400 font-semibold">Mobile Menu</p>

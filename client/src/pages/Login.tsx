@@ -83,9 +83,7 @@ export const Login: React.FC = () => {
       <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 p-8 z-10 space-y-6">
         {/* College Header */}
         <div className="text-center">
-          <div className="w-16 h-16 rounded-2xl bg-brand-600 mx-auto flex items-center justify-center text-white text-3xl font-black shadow-xl shadow-brand-600/30 mb-3">
-            🎓
-          </div>
+          <img src="/logo.png" alt="Sirajul Huda College Logo" className="w-20 h-20 object-contain mx-auto mb-3 bg-white p-2 rounded-2xl shadow-xl border border-slate-100" />
           <h1 className="text-xl font-bold text-slate-900 tracking-tight leading-snug">
             Sirajul Huda College of Science & Integrated Studies
           </h1>

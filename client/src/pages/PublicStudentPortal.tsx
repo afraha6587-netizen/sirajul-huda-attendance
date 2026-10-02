@@ -63,9 +63,7 @@ export const PublicStudentPortal: React.FC = () => {
       {/* Public Header Bar */}
       <header className="no-print bg-slate-900/90 border-b border-slate-800 px-6 py-4 sticky top-0 z-20 backdrop-blur-xs flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center text-white font-extrabold text-lg shadow-lg shadow-brand-600/30 shrink-0">
-            🎓
-          </div>
+          <img src="/logo.png" alt="Sirajul Huda Logo" className="w-10 h-10 object-contain rounded-xl bg-white p-1 shadow-md shrink-0" />
           <div>
             <h1 className="text-sm sm:text-base font-bold text-white leading-tight">
               Sirajul Huda College of Science & Integrated Studies
@@ -105,9 +103,7 @@ export const PublicStudentPortal: React.FC = () => {
 
           {/* Certificate Body */}
           <div className="text-center space-y-3 pt-4">
-            <div className="w-16 h-16 rounded-2xl bg-slate-900 text-white text-3xl font-bold flex items-center justify-center mx-auto shadow-md">
-              🎓
-            </div>
+            <img src="/logo.png" alt="Sirajul Huda Logo" className="w-16 h-16 object-contain mx-auto mb-2" />
             <h1 className="text-xl font-black uppercase tracking-tight text-slate-900">
               {certificateData.collegeName}
             </h1>

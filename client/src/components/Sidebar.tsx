@@ -75,9 +75,7 @@ export const Sidebar: React.FC = () => {
     <aside className="hidden md:flex w-64 bg-slate-900 text-slate-300 flex-col min-h-screen border-r border-slate-800 shrink-0">
       {/* Brand Header */}
       <div className="p-5 border-b border-slate-800 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center text-white font-black text-lg shadow-lg shadow-brand-600/30 shrink-0">
-          🎓
-        </div>
+        <img src="/logo.png" alt="Sirajul Huda Logo" className="w-10 h-10 object-contain rounded-xl bg-white p-1 shadow-md shrink-0" />
         <div className="overflow-hidden">
           <h1 className="text-white font-extrabold text-sm leading-tight truncate">Sirajul Huda College</h1>
           <p className="text-[10px] text-brand-400 font-semibold uppercase tracking-wider mt-0.5">Attendance System</p>
