@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { login, me } from '../controllers/authController';
+import { login, me, registerTeacher } from '../controllers/authController';
 import {
   getAcademicYears, createAcademicYear, updateAcademicYear,
   getAcademicMonths, createAcademicMonth, updateAcademicMonth,
@@ -13,7 +13,7 @@ import {
   getStudentCertificate,
 } from '../controllers/studentController';
 import { getSubjects, createSubject, updateSubject, deleteSubject } from '../controllers/subjectController';
-import { getTeachers, createTeacher, updateTeacher, deleteTeacher } from '../controllers/teacherController';
+import { getTeachers, createTeacher, updateTeacher, deleteTeacher, approveTeacher } from '../controllers/teacherController';
 import { getClassSubjects, assignSubjectToClass, removeSubjectFromClass } from '../controllers/classSubjectController';
 import {
   saveAttendanceSession, saveDailyAttendance, getDailyAttendance,
@@ -33,6 +33,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 // 1. PUBLIC ROUTES (No Token Required)
 router.post('/auth/login', login);
+router.post('/auth/register', registerTeacher);
 router.get('/public/student-attendance', getPublicStudentAttendance);
 router.get('/public/academic-months', getAcademicMonths);
 router.get('/public/seed', seedSystem);
@@ -100,6 +101,7 @@ router.delete('/subjects/:id', requireAdmin, deleteSubject);
 router.get('/teachers', getTeachers);
 router.post('/teachers', requireAdmin, createTeacher);
 router.put('/teachers/:id', requireAdmin, updateTeacher);
+router.put('/teachers/:id/approve', requireAdmin, approveTeacher);
 router.delete('/teachers/:id', requireAdmin, deleteTeacher);
 
 // Class-Subject Assignment Routes

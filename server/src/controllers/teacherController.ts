@@ -7,7 +7,7 @@ export const getTeachers = async (_req: AuthRequest, res: Response) => {
   try {
     const teachers = await prisma.teacher.findMany({
       include: {
-        user: { select: { email: true, role: true } },
+        user: { select: { email: true, role: true, isApproved: true } },
         classSubjects: {
           include: {
             class: true,
@@ -146,5 +146,32 @@ export const deleteTeacher = async (req: AuthRequest, res: Response) => {
     res.json({ message: 'Teacher deleted successfully' });
   } catch (error: any) {
     res.status(400).json({ error: error.message || 'Failed to delete teacher' });
+  }
+};
+
+export const approveTeacher = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const teacher = await prisma.teacher.findUnique({ where: { id }, include: { user: true } });
+    if (!teacher) {
+      return res.status(404).json({ error: 'Teacher not found' });
+    }
+
+    if (teacher.userId) {
+      await prisma.user.update({
+        where: { id: teacher.userId },
+        data: { isApproved: true },
+      });
+    }
+
+    const updated = await prisma.teacher.update({
+      where: { id },
+      data: { active: true },
+      include: { user: { select: { email: true, role: true, isApproved: true } } },
+    });
+
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to approve teacher' });
   }
 };

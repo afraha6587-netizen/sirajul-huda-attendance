@@ -46,6 +46,12 @@ export const login = async (req: AuthRequest, res: Response) => {
       }
     }
 
+    if (!user.isApproved && user.role !== 'ADMIN') {
+      return res.status(403).json({
+        error: 'Your registration is pending Admin approval. Please contact the administrator to activate your account.',
+      });
+    }
+
     const payload = {
       id: user.id,
       email: user.email,
@@ -63,6 +69,57 @@ export const login = async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Server error during login' });
+  }
+};
+
+export const registerTeacher = async (req: AuthRequest, res: Response) => {
+  try {
+    const { name, email, password, code } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Name, email, and password are required' });
+    }
+
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({ error: 'This email is already registered' });
+    }
+
+    // Generate unique code if not provided
+    const teacherCode = code ? String(code).trim().toUpperCase() : `T-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const existingCode = await prisma.teacher.findUnique({ where: { code: teacherCode } });
+    if (existingCode) {
+      return res.status(400).json({ error: `Teacher code ${teacherCode} is already taken` });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        passwordHash,
+        role: 'TEACHER',
+        isApproved: false, // Requires Admin Approval
+      },
+    });
+
+    await prisma.teacher.create({
+      data: {
+        name,
+        code: teacherCode,
+        userId: user.id,
+        active: false, // Inactive until Admin approval
+      },
+    });
+
+    res.status(201).json({
+      message: 'Registration submitted successfully! Your account is pending Admin approval.',
+    });
+  } catch (error: any) {
+    console.error('Teacher registration error:', error);
+    res.status(500).json({ error: error.message || 'Failed to submit teacher registration' });
   }
 };
 

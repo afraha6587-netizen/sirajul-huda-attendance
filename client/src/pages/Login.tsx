@@ -1,20 +1,34 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LogIn, ShieldAlert, Lock, Mail, Search, ArrowRight } from 'lucide-react';
+import api from '../utils/api';
+import { LogIn, ShieldAlert, Lock, Mail, Search, ArrowRight, UserPlus, CheckCircle2, User, KeyRound } from 'lucide-react';
 
 export const Login: React.FC = () => {
+  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  
+  // Login fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  
+  // Register fields
+  const [regName, setRegName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regCode, setRegCode] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccessMsg('');
     setLoading(true);
 
     try {
@@ -22,6 +36,39 @@ export const Login: React.FC = () => {
       navigate('/');
     } catch (err: any) {
       setError(err.response?.data?.error || 'Invalid email or password. Please check your credentials.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMsg('');
+
+    if (regPassword !== regConfirmPassword) {
+      setError('Passwords do not match. Please enter the same password in both fields.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await api.post('/auth/register', {
+        name: regName,
+        email: regEmail,
+        password: regPassword,
+        code: regCode || undefined,
+      });
+
+      setSuccessMsg(res.data.message || 'Registration submitted! Your account is pending Admin approval.');
+      setRegName('');
+      setRegEmail('');
+      setRegCode('');
+      setRegPassword('');
+      setRegConfirmPassword('');
+      setActiveTab('login');
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -48,6 +95,35 @@ export const Login: React.FC = () => {
           </span>
         </div>
 
+        {/* Tab Selection */}
+        <div className="grid grid-cols-2 p-1.5 bg-slate-100 rounded-2xl">
+          <button
+            type="button"
+            onClick={() => { setActiveTab('login'); setError(''); }}
+            className={`py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 ${
+              activeTab === 'login'
+                ? 'bg-white text-brand-600 shadow-xs'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <LogIn className="w-3.5 h-3.5" />
+            <span>Sign In</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => { setActiveTab('register'); setError(''); }}
+            className={`py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 ${
+              activeTab === 'register'
+                ? 'bg-white text-brand-600 shadow-xs'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>Teacher Signup</span>
+          </button>
+        </div>
+
+        {/* Alerts */}
         {error && (
           <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-3">
             <ShieldAlert className="w-5 h-5 shrink-0 text-rose-600" />
@@ -55,56 +131,169 @@ export const Login: React.FC = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-              Email / User ID
-            </label>
-            <div className="relative">
-              <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+        {successMsg && (
+          <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 shrink-0 text-emerald-600" />
+            <span>{successMsg}</span>
+          </div>
+        )}
+
+        {/* LOGIN FORM */}
+        {activeTab === 'login' ? (
+          <form onSubmit={handleLoginSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Email / User ID
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-sm focus:border-brand-600 focus:bg-white focus:outline-none transition-all font-medium"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-sm focus:border-brand-600 focus:bg-white focus:outline-none transition-all font-medium"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-lg shadow-brand-600/30 flex items-center justify-center gap-2 transition-all disabled:opacity-50 mt-2"
+            >
+              {loading ? (
+                <span className="animate-pulse">Authenticating...</span>
+              ) : (
+                <>
+                  <LogIn className="w-4 h-4" />
+                  <span>Sign In to Portal</span>
+                </>
+              )}
+            </button>
+          </form>
+        ) : (
+          /* TEACHER REGISTRATION FORM */
+          <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Full Name *
+              </label>
+              <div className="relative">
+                <User className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  required
+                  value={regName}
+                  onChange={(e) => setRegName(e.target.value)}
+                  placeholder="e.g. Prof. Muhammed Ali"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-xs focus:border-brand-600 focus:bg-white focus:outline-none transition-all font-medium"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Email Address *
+              </label>
+              <div className="relative">
+                <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="email"
+                  required
+                  value={regEmail}
+                  onChange={(e) => setRegEmail(e.target.value)}
+                  placeholder="teacher@college.edu"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-xs focus:border-brand-600 focus:bg-white focus:outline-none transition-all font-medium"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Teacher Code (Optional)
+              </label>
               <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email or User ID"
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-sm focus:border-brand-600 focus:bg-white focus:outline-none transition-all font-medium"
+                type="text"
+                value={regCode}
+                onChange={(e) => setRegCode(e.target.value)}
+                placeholder="e.g. T-102 (Leave blank for auto-code)"
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-xs focus:border-brand-600 focus:bg-white focus:outline-none transition-all font-medium"
               />
             </div>
-          </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-              Password
-            </label>
-            <div className="relative">
-              <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-sm focus:border-brand-600 focus:bg-white focus:outline-none transition-all font-medium"
-              />
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Create Password *
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="password"
+                  required
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-xs focus:border-brand-600 focus:bg-white focus:outline-none transition-all font-medium"
+                />
+              </div>
             </div>
-          </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3.5 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-lg shadow-brand-600/30 flex items-center justify-center gap-2 transition-all disabled:opacity-50 mt-2"
-          >
-            {loading ? (
-              <span className="animate-pulse">Authenticating...</span>
-            ) : (
-              <>
-                <LogIn className="w-4 h-4" />
-                <span>Sign In to Admin Portal</span>
-              </>
-            )}
-          </button>
-        </form>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Confirm Password *
+              </label>
+              <div className="relative">
+                <KeyRound className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="password"
+                  required
+                  value={regConfirmPassword}
+                  onChange={(e) => setRegConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-xs focus:border-brand-600 focus:bg-white focus:outline-none transition-all font-medium"
+                />
+              </div>
+            </div>
+
+            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-800 font-medium leading-relaxed">
+              ⏳ <strong>Note:</strong> Your registration will require Admin approval before you can log in.
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-sm shadow-lg shadow-brand-600/30 flex items-center justify-center gap-2 transition-all disabled:opacity-50 mt-2"
+            >
+              {loading ? (
+                <span className="animate-pulse">Submitting Registration...</span>
+              ) : (
+                <>
+                  <UserPlus className="w-4 h-4" />
+                  <span>Submit Teacher Signup</span>
+                </>
+              )}
+            </button>
+          </form>
+        )}
 
         {/* Public Student Search CTA Box */}
         <div className="pt-4 border-t border-slate-100">
