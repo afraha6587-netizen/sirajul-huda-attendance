@@ -166,16 +166,23 @@ export const MarkDailyAttendance: React.FC = () => {
         )}
 
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-100">
-              <tr>
-                <th className="px-6 py-3.5">Roll No</th>
-                <th className="px-6 py-3.5">Reg Number</th>
-                <th className="px-6 py-3.5">Student Name</th>
-                <th className="px-6 py-3.5 text-center">Daily Status</th>
-                <th className="px-6 py-3.5 text-center">WhatsApp Parent Alert</th>
-              </tr>
-            </thead>
+          {/* Touch Swipe Indicator on Mobile */}
+          <div className="sm:hidden px-4 py-2 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-semibold">
+            <span>👈 Swipe table left / right to view buttons</span>
+            <span className="text-brand-600 font-bold">Touch Swipe Enabled ↔️</span>
+          </div>
+
+          <div className="overflow-x-auto touch-pan-x w-full">
+            <table className="w-full text-left text-xs min-w-[650px]">
+              <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-100">
+                <tr>
+                  <th className="px-5 py-3.5 w-20">Roll No</th>
+                  <th className="px-5 py-3.5 w-28">Reg Number</th>
+                  <th className="px-5 py-3.5">Student Name</th>
+                  <th className="px-5 py-3.5 text-center w-52">Daily Status</th>
+                  <th className="px-5 py-3.5 text-center w-40">WhatsApp Parent Alert</th>
+                </tr>
+              </thead>
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
               {loading ? (
                 <tr>
@@ -255,7 +262,8 @@ export const MarkDailyAttendance: React.FC = () => {
             </tbody>
           </table>
         </div>
-      </main>
+      </div>
+    </main>
     </div>
   );
 };
