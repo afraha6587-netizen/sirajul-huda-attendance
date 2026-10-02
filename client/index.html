@@ -25,13 +25,37 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
+      // Automatic Script Load Error Recovery (fixes mobile white screen on new deployments)
+      window.addEventListener('error', function(e) {
+        if (e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK')) {
+          console.warn('Stale mobile asset detected, refreshing for latest version...');
+          if (!sessionStorage.getItem('reloaded_for_update')) {
+            sessionStorage.setItem('reloaded_for_update', 'true');
+            window.location.reload(true);
+          }
+        }
+      }, true);
+
+      window.addEventListener('load', function() {
+        sessionStorage.removeItem('reloaded_for_update');
+      });
+
       // Register PWA ServiceWorker for Standalone Mobile Application Installation (WebAPK)
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
           navigator.serviceWorker.register('/sw.js').then(function(reg) {
-            console.log('PWA ServiceWorker active for standalone application installation');
+            reg.onupdatefound = function() {
+              const installingWorker = reg.installing;
+              if (installingWorker) {
+                installingWorker.onstatechange = function() {
+                  if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    window.location.reload();
+                  }
+                };
+              }
+            };
           }).catch(function(err) {
-            console.warn('ServiceWorker registration error:', err);
+            console.warn('ServiceWorker registration warning:', err);
           });
         });
       }
