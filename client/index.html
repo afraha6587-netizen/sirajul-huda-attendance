@@ -25,19 +25,14 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Mobile Safari & Android PWA Cache Purger & ServiceWorker Unregister
+      // Register PWA ServiceWorker for Standalone Mobile Application Installation (WebAPK)
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(registrations) {
-          for (let registration of registrations) {
-            registration.unregister();
-          }
-        });
-      }
-      if ('caches' in window) {
-        caches.keys().then(function(names) {
-          for (let name of names) {
-            caches.delete(name);
-          }
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js').then(function(reg) {
+            console.log('PWA ServiceWorker active for standalone application installation');
+          }).catch(function(err) {
+            console.warn('ServiceWorker registration error:', err);
+          });
         });
       }
     </script>

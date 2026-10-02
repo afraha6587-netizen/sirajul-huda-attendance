@@ -1,11 +1,15 @@
 {
+  "id": "sirajul-huda-attendance-app",
   "name": "Sirajul Huda College Attendance",
   "short_name": "Sirajul Huda",
   "description": "Official Attendance & Syllabus Tracker - Sirajul Huda College of Science and Integrated Studies, Nadapuram",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0f172a",
   "theme_color": "#0d9488",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/logo.png",
