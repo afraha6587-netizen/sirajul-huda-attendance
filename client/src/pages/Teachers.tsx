@@ -117,15 +117,25 @@ export const Teachers: React.FC = () => {
 
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Faculty & Teachers ({teachers.length})</h2>
-            <p className="text-xs text-slate-500">Each approved teacher can log in and mark attendance for their assigned subjects</p>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold text-slate-900">Faculty & Teachers ({teachers.length}/6)</h2>
+              <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                teachers.length >= 6
+                  ? 'bg-rose-50 text-rose-700 border-rose-200'
+                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              }`}>
+                {teachers.length >= 6 ? 'Limit Reached (6 Max)' : `${6 - teachers.length} Available`}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">Maximum 6 teachers allowed. Admin can approve or add teachers.</p>
           </div>
           <button
             onClick={() => handleOpenModal()}
-            className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-colors"
+            disabled={teachers.length >= 6}
+            className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Plus className="w-4 h-4" />
-            <span>Add New Teacher</span>
+            <span>{teachers.length >= 6 ? 'Teacher Limit Reached' : 'Add New Teacher'}</span>
           </button>
         </div>
 

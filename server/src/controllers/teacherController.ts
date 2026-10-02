@@ -27,6 +27,12 @@ export const createTeacher = async (req: AuthRequest, res: Response) => {
   try {
     const { name, code, email, password } = req.body;
 
+    // Enforce Maximum 6 Teachers Limit
+    const currentTeacherCount = await prisma.teacher.count();
+    if (currentTeacherCount >= 6) {
+      return res.status(400).json({ error: 'Maximum limit of 6 teachers reached. You cannot add more teachers.' });
+    }
+
     if (!name || !code) {
       return res.status(400).json({ error: 'Teacher name and code are required' });
     }
@@ -155,6 +161,12 @@ export const approveTeacher = async (req: AuthRequest, res: Response) => {
     const teacher = await prisma.teacher.findUnique({ where: { id }, include: { user: true } });
     if (!teacher) {
       return res.status(404).json({ error: 'Teacher not found' });
+    }
+
+    // Check active teacher limit of 6
+    const activeTeacherCount = await prisma.teacher.count({ where: { active: true } });
+    if (!teacher.active && activeTeacherCount >= 6) {
+      return res.status(400).json({ error: 'Maximum limit of 6 active teachers reached. Delete or deactivate a teacher first.' });
     }
 
     if (teacher.userId) {

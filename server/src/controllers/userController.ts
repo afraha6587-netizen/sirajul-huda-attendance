@@ -30,6 +30,20 @@ export const createUser = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Name, Email/ID, Password, and Role are required' });
     }
 
+    const targetRole = role === 'ADMIN' ? 'ADMIN' : 'TEACHER';
+
+    if (targetRole === 'ADMIN') {
+      const adminCount = await prisma.user.count({ where: { role: 'ADMIN' } });
+      if (adminCount >= 2) {
+        return res.status(400).json({ error: 'Maximum limit of 2 Super Admins reached. You cannot create more Super Admins.' });
+      }
+    } else {
+      const teacherCount = await prisma.teacher.count();
+      if (teacherCount >= 6) {
+        return res.status(400).json({ error: 'Maximum limit of 6 teachers reached.' });
+      }
+    }
+
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
       return res.status(400).json({ error: `User with Email/ID "${email}" already exists` });
@@ -41,7 +55,7 @@ export const createUser = async (req: AuthRequest, res: Response) => {
         name,
         email,
         passwordHash,
-        role: role === 'ADMIN' ? 'ADMIN' : 'TEACHER',
+        role: targetRole,
       },
       select: {
         id: true,
@@ -62,6 +76,13 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { name, email, password, role } = req.body;
+
+    if (role === 'ADMIN') {
+      const adminCount = await prisma.user.count({ where: { role: 'ADMIN', NOT: { id } } });
+      if (adminCount >= 2) {
+        return res.status(400).json({ error: 'Maximum limit of 2 Super Admins reached.' });
+      }
+    }
 
     if (email) {
       const existing = await prisma.user.findFirst({ where: { email, NOT: { id } } });

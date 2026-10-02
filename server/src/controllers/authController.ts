@@ -76,6 +76,12 @@ export const registerTeacher = async (req: AuthRequest, res: Response) => {
   try {
     const { name, email, password, code } = req.body;
 
+    // Check teacher limit of 6
+    const teacherCount = await prisma.teacher.count();
+    if (teacherCount >= 6) {
+      return res.status(400).json({ error: 'Teacher registration limit reached (Maximum 6 teachers allowed).' });
+    }
+
     if (!name || !email || !password) {
       return res.status(400).json({ error: 'Name, email, and password are required' });
     }
