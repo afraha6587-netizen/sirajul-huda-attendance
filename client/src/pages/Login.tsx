@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
-import { LogIn, ShieldAlert, Lock, Mail, Search, ArrowRight, UserPlus, CheckCircle2, User, KeyRound } from 'lucide-react';
+import { LogIn, ShieldAlert, Lock, Mail, Search, ArrowRight, UserPlus, CheckCircle2, User, KeyRound, Eye, EyeOff } from 'lucide-react';
 
 export const Login: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
@@ -10,6 +10,7 @@ export const Login: React.FC = () => {
   // Login fields
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   
   // Register fields
   const [regName, setRegName] = useState('');
@@ -17,6 +18,8 @@ export const Login: React.FC = () => {
   const [regCode, setRegCode] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
 
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -163,13 +166,21 @@ export const Login: React.FC = () => {
               <div className="relative">
                 <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
-                  type="password"
+                  type={showLoginPassword ? 'text' : 'password'}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-sm focus:border-brand-600 focus:bg-white focus:outline-none transition-all font-medium"
+                  className="w-full pl-10 pr-10 py-3 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-sm focus:border-brand-600 focus:bg-white focus:outline-none transition-all font-medium"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPassword(!showLoginPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none p-1"
+                  title={showLoginPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
@@ -245,13 +256,21 @@ export const Login: React.FC = () => {
               <div className="relative">
                 <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
-                  type="password"
+                  type={showRegPassword ? 'text' : 'password'}
                   required
                   value={regPassword}
                   onChange={(e) => setRegPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-xs focus:border-brand-600 focus:bg-white focus:outline-none transition-all font-medium"
+                  className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-xs focus:border-brand-600 focus:bg-white focus:outline-none transition-all font-medium"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowRegPassword(!showRegPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none p-1"
+                  title={showRegPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
@@ -262,13 +281,21 @@ export const Login: React.FC = () => {
               <div className="relative">
                 <KeyRound className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
-                  type="password"
+                  type={showRegConfirmPassword ? 'text' : 'password'}
                   required
                   value={regConfirmPassword}
                   onChange={(e) => setRegConfirmPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-xs focus:border-brand-600 focus:bg-white focus:outline-none transition-all font-medium"
+                  className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-slate-900 text-xs focus:border-brand-600 focus:bg-white focus:outline-none transition-all font-medium"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none p-1"
+                  title={showRegConfirmPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showRegConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 

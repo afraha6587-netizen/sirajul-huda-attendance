@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Edit2, Trash2, UserCheck, Mail, Shield, BookOpen, Clock, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, UserCheck, Mail, Shield, BookOpen, Clock, AlertTriangle, CheckCircle2, Eye, EyeOff } from 'lucide-react';
 import api from '../utils/api';
 import { Teacher } from '../types';
 import { Navbar } from '../components/Navbar';
@@ -8,6 +8,7 @@ import { Modal } from '../components/Modal';
 export const Teachers: React.FC = () => {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -288,13 +289,23 @@ export const Teachers: React.FC = () => {
                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
                   Password {editingTeacher ? '(Leave blank to keep unchanged)' : ''}
                 </label>
-                <input
-                  type="password"
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="w-full px-4 py-2 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:border-brand-600 focus:bg-white focus:outline-none"
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    className="w-full pl-4 pr-10 py-2 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:border-brand-600 focus:bg-white focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none p-1"
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
