@@ -13,35 +13,54 @@ export const login = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    let user = await prisma.user.findUnique({
-      where: { email },
+    const cleanEmail = String(email).trim().toLowerCase();
+    const cleanPassword = String(password).trim();
+
+    let user = await prisma.user.findFirst({
+      where: {
+        email: {
+          equals: cleanEmail,
+          mode: 'insensitive',
+        },
+      },
       include: { teacher: true },
     });
 
-    // Fail-safe auto-recovery for initial admin on production start
-    if (!user && (email === 'admin@college.edu' || (await prisma.user.count()) === 0)) {
-      console.log('⚡ Auto-seeding initial Super Admin on production request...');
-      await ensureAdminSeeded();
-      user = await prisma.user.findUnique({
-        where: { email: 'admin@college.edu' },
-        include: { teacher: true },
-      });
-    }
+    // Fail-safe auto-recovery for default Super Admin
+    if (cleanEmail === 'admin@college.edu' && cleanPassword === 'Admin@123456') {
+      const adminPasswordHash = await bcrypt.hash('Admin@123456', 10);
 
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    const isMatch = await bcrypt.compare(password, user.passwordHash);
-    if (!isMatch) {
-      // Fallback: If admin password hash doesn't match default Admin@123456, re-hash and update
-      if (email === 'admin@college.edu' && password === 'Admin@123456') {
-        const newHash = await bcrypt.hash('Admin@123456', 10);
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { passwordHash: newHash },
+      if (!user) {
+        console.log('⚡ Creating Super Admin account on request...');
+        user = await prisma.user.create({
+          data: {
+            email: 'admin@college.edu',
+            name: 'Super Administrator',
+            passwordHash: adminPasswordHash,
+            role: 'ADMIN',
+            isApproved: true,
+          },
+          include: { teacher: true },
         });
       } else {
+        // Force update admin password hash to match Admin@123456
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            passwordHash: adminPasswordHash,
+            role: 'ADMIN',
+            isApproved: true,
+          },
+          include: { teacher: true },
+        });
+      }
+    } else {
+      if (!user) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      const isMatch = await bcrypt.compare(cleanPassword, user.passwordHash);
+      if (!isMatch) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
     }
@@ -68,7 +87,7 @@ export const login = async (req: AuthRequest, res: Response) => {
     });
   } catch (error: any) {
     console.error('Login error:', error);
-    res.status(500).json({ error: 'Server error during login' });
+    res.status(500).json({ error: error.message || 'Server error during login' });
   }
 };
 
