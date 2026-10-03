@@ -45,11 +45,12 @@
         window.addEventListener('load', function() {
           navigator.serviceWorker.register('/sw.js').then(function(reg) {
             window.swRegistration = reg;
+            reg.update();
 
-            // Check for updates every 60 seconds
+            // Check for updates every 15 seconds
             setInterval(function() {
               reg.update();
-            }, 60000);
+            }, 15000);
 
             // Check for updates when tab becomes visible
             document.addEventListener('visibilitychange', function() {
