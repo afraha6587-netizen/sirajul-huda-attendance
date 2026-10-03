@@ -26,6 +26,7 @@ import { getPublicStudentAttendance, seedSystem, cleanResetSystem } from '../con
 import { getUsers, createUser, updateUser, deleteUser } from '../controllers/userController';
 import { getHolidays, createHoliday, deleteHoliday, getCalendarMonthGrid } from '../controllers/holidayController';
 import { getDatabaseOverview, getDatabaseTableData, exportFullDatabaseBackup } from '../controllers/databaseController';
+import { getBroadcastRecipients, generateBroadcastMessages } from '../controllers/broadcastController';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
 
 const router = Router();
@@ -50,6 +51,10 @@ router.get('/database/backup', requireAdmin, exportFullDatabaseBackup);
 
 // Interactive Month Calendar Grid API Route
 router.get('/calendar/month-grid', getCalendarMonthGrid);
+
+// Parent Broadcast & Notification Center Routes
+router.post('/broadcast/recipients', getBroadcastRecipients);
+router.post('/broadcast/generate', generateBroadcastMessages);
 
 // Holiday & Leave Management Routes
 router.get('/holidays', getHolidays);

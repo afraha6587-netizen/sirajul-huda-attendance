@@ -25,6 +25,7 @@ import { ImportExport } from './pages/ImportExport';
 import { UsersPage } from './pages/UsersPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { DatabaseViewerPage } from './pages/DatabaseViewerPage';
+import { ParentBroadcastPage } from './pages/ParentBroadcastPage';
 
 const ProtectedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
@@ -153,6 +154,15 @@ export const App: React.FC = () => {
               element={
                 <ProtectedLayout>
                   <HolidaysPage />
+                </ProtectedLayout>
+              }
+            />
+
+            <Route
+              path="/parent-broadcast"
+              element={
+                <ProtectedLayout>
+                  <ParentBroadcastPage />
                 </ProtectedLayout>
               }
             />

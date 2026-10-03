@@ -21,6 +21,7 @@ import {
   FileText,
   Calendar,
   Database,
+  Send,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
@@ -41,6 +42,7 @@ export const Sidebar: React.FC = () => {
 
   const adminNavItems = [
     { label: 'Dashboard', path: '/', icon: LayoutDashboard },
+    { label: 'Parent Broadcast', path: '/parent-broadcast', icon: Send },
     { label: 'Classes', path: '/classes', icon: GraduationCap },
     { label: 'Students', path: '/students', icon: Users },
     { label: 'Subjects', path: '/subjects', icon: BookOpen },
@@ -61,6 +63,7 @@ export const Sidebar: React.FC = () => {
 
   const teacherNavItems = [
     { label: 'Dashboard', path: '/', icon: LayoutDashboard },
+    { label: 'Parent Broadcast', path: '/parent-broadcast', icon: Send },
     { label: 'Mark Attendance', path: '/mark-attendance', icon: CheckSquare },
     { label: 'Daily Attendance', path: '/daily-attendance', icon: CalendarCheck },
     { label: 'Syllabus Log', path: '/syllabus-log', icon: FileText },
