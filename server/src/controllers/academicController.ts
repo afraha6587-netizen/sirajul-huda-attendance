@@ -66,6 +66,23 @@ export const updateAcademicYear = async (req: AuthRequest, res: Response) => {
   }
 };
 
+export const deleteAcademicYear = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const year = await prisma.academicYear.findUnique({ where: { id } });
+    if (!year) {
+      return res.status(404).json({ error: 'Academic year not found' });
+    }
+    if (year.isCurrent) {
+      return res.status(400).json({ error: 'Cannot delete the active system academic year. Set another year active first.' });
+    }
+    await prisma.academicYear.delete({ where: { id } });
+    res.json({ message: 'Academic year deleted successfully' });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to delete academic year' });
+  }
+};
+
 // Academic Months (Chronologically Sorted)
 export const getAcademicMonths = async (req: AuthRequest, res: Response) => {
   try {

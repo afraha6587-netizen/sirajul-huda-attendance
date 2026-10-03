@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { login, me, registerTeacher } from '../controllers/authController';
 import {
-  getAcademicYears, createAcademicYear, updateAcademicYear,
+  getAcademicYears, createAcademicYear, updateAcademicYear, deleteAcademicYear,
   getAcademicMonths, createAcademicMonth, updateAcademicMonth,
   getSubjectMonthlyConfigs, updateSubjectMonthlyConfig,
   getSettings, updateSettings,
@@ -66,6 +66,7 @@ router.delete('/users/:id', requireAdmin, deleteUser);
 router.get('/academic-years', getAcademicYears);
 router.post('/academic-years', requireAdmin, createAcademicYear);
 router.put('/academic-years/:id', requireAdmin, updateAcademicYear);
+router.delete('/academic-years/:id', requireAdmin, deleteAcademicYear);
 router.get('/academic-months', getAcademicMonths);
 router.post('/academic-months', requireAdmin, createAcademicMonth);
 router.put('/academic-months/:id', requireAdmin, updateAcademicMonth);

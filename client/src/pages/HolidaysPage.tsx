@@ -17,15 +17,18 @@ import api from '../utils/api';
 import { AcademicMonth, AcademicYear } from '../types';
 import { Navbar } from '../components/Navbar';
 import { Modal } from '../components/Modal';
+import { useAcademic } from '../context/AcademicContext';
 
 export const HolidaysPage: React.FC = () => {
   const navigate = useNavigate();
-  const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
-  const [academicMonths, setAcademicMonths] = useState<AcademicMonth[]>([]);
-
-  // Selectors
-  const [selectedYearId, setSelectedYearId] = useState<string>('');
-  const [selectedMonthId, setSelectedMonthId] = useState<string>('');
+  const {
+    academicYears,
+    academicMonths,
+    selectedYearId,
+    selectedMonthId,
+    setSelectedYearId,
+    setSelectedMonthId,
+  } = useAcademic();
 
   // Month Calendar Data
   const [calendarGridData, setCalendarGridData] = useState<any | null>(null);
@@ -45,17 +48,6 @@ export const HolidaysPage: React.FC = () => {
 
   // Selected Day Detail Drawer Modal
   const [selectedDayDetail, setSelectedDayDetail] = useState<any | null>(null);
-
-  // 1. Initial fetch Academic Years & Months
-  useEffect(() => {
-    Promise.all([api.get('/academic-years'), api.get('/academic-months')]).then(([yrRes, mRes]) => {
-      setAcademicYears(yrRes.data);
-      setAcademicMonths(mRes.data);
-
-      if (yrRes.data.length > 0) setSelectedYearId(yrRes.data[0].id);
-      if (mRes.data.length > 0) setSelectedMonthId(mRes.data[0].id);
-    });
-  }, []);
 
   // 2. Fetch Month Calendar Grid & Holidays when Year/Month selection changes
   const fetchCalendarGrid = async () => {
@@ -240,93 +232,98 @@ export const HolidaysPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Weekday Grid Headers */}
-          <div className="grid grid-cols-7 bg-slate-100 border-b border-slate-200 text-center py-3 text-xs font-bold text-slate-700 uppercase tracking-wider">
-            {weekdays.map((wd, i) => (
-              <div key={wd} className={i === 0 ? 'text-rose-600 font-extrabold' : ''}>
-                {wd}
+          {/* Swipable Grid Body on Mobile */}
+          <div className="overflow-x-auto touch-pan-x">
+            <div className="min-w-[700px]">
+              {/* Weekday Grid Headers */}
+              <div className="grid grid-cols-7 bg-slate-100 border-b border-slate-200 text-center py-3 text-xs font-bold text-slate-700 uppercase tracking-wider">
+                {weekdays.map((wd, i) => (
+                  <div key={wd} className={i === 0 ? 'text-rose-600 font-extrabold' : ''}>
+                    {wd}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          {/* Days Grid Cells */}
-          {loading ? (
-            <div className="p-16 text-center text-slate-400 text-xs animate-pulse">
-              Loading calendar grid for {calendarGridData?.monthName}...
-            </div>
-          ) : (
-            <div className="grid grid-cols-7 auto-rows-fr divide-x divide-y divide-slate-100 bg-slate-50/50">
-              {/* Empty padding cells for start weekday */}
-              {emptyPaddingCells.map((_, idx) => (
-                <div key={`empty-${idx}`} className="h-28 bg-slate-100/40 p-2"></div>
-              ))}
+              {/* Days Grid Cells */}
+              {loading ? (
+                <div className="p-16 text-center text-slate-400 text-xs animate-pulse">
+                  Loading calendar grid for {calendarGridData?.monthName}...
+                </div>
+              ) : (
+                <div className="grid grid-cols-7 auto-rows-fr divide-x divide-y divide-slate-100 bg-slate-50/50">
+                  {/* Empty padding cells for start weekday */}
+                  {emptyPaddingCells.map((_, idx) => (
+                    <div key={`empty-${idx}`} className="h-28 bg-slate-100/40 p-2"></div>
+                  ))}
 
-              {/* Real Month Calendar Day Cells */}
-              {calendarGridData?.calendarDays?.map((day: any) => {
-                const isSun = day.isSunday;
-                const isHostelLeave = day.holidayType === 'HOSTEL_LEAVE';
-                const isHoliday = day.isHoliday && !isSun && !isHostelLeave;
+                  {/* Real Month Calendar Day Cells */}
+                  {calendarGridData?.calendarDays?.map((day: any) => {
+                    const isSun = day.isSunday;
+                    const isHostelLeave = day.holidayType === 'HOSTEL_LEAVE';
+                    const isHoliday = day.isHoliday && !isSun && !isHostelLeave;
 
-                return (
-                  <div
-                    key={day.dayNumber}
-                    onClick={() => setSelectedDayDetail(day)}
-                    className={`h-28 p-3 flex flex-col justify-between transition-all cursor-pointer hover:bg-brand-50/80 group border-b border-r border-slate-100 relative ${
-                      isSun
-                        ? 'bg-rose-50/40'
-                        : isHostelLeave
-                        ? 'bg-purple-50/50'
-                        : isHoliday
-                        ? 'bg-teal-50/40'
-                        : 'bg-white'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <span
-                        className={`text-sm font-extrabold px-2 py-0.5 rounded-lg ${
+                    return (
+                      <div
+                        key={day.dayNumber}
+                        onClick={() => setSelectedDayDetail(day)}
+                        className={`h-28 p-3 flex flex-col justify-between transition-all cursor-pointer hover:bg-brand-50/80 group border-b border-r border-slate-100 relative ${
                           isSun
-                            ? 'bg-rose-100 text-rose-800'
-                            : 'text-slate-800 group-hover:bg-brand-600 group-hover:text-white'
+                            ? 'bg-rose-50/40'
+                            : isHostelLeave
+                            ? 'bg-purple-50/50'
+                            : isHoliday
+                            ? 'bg-teal-50/40'
+                            : 'bg-white'
                         }`}
                       >
-                        {day.dayNumber}
-                      </span>
-                      <span className="text-[10px] text-slate-400 uppercase font-semibold">
-                        {day.weekdayName}
-                      </span>
-                    </div>
+                        <div className="flex items-start justify-between">
+                          <span
+                            className={`text-sm font-extrabold px-2 py-0.5 rounded-lg ${
+                              isSun
+                                ? 'bg-rose-100 text-rose-800'
+                                : 'text-slate-800 group-hover:bg-brand-600 group-hover:text-white'
+                            }`}
+                          >
+                            {day.dayNumber}
+                          </span>
+                          <span className="text-[10px] text-slate-400 uppercase font-semibold">
+                            {day.weekdayName}
+                          </span>
+                        </div>
 
-                    {/* Status Badges */}
-                    <div className="space-y-1 mt-1">
-                      {isSun && (
-                        <span className="block px-2 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-800 border border-rose-200 truncate">
-                          Sunday Off
-                        </span>
-                      )}
+                        {/* Status Badges */}
+                        <div className="space-y-1 mt-1">
+                          {isSun && (
+                            <span className="block px-2 py-0.5 rounded text-[9px] font-bold bg-rose-100 text-rose-800 border border-rose-200 truncate">
+                              Sunday Off
+                            </span>
+                          )}
 
-                      {isHostelLeave && (
-                        <span className="block px-2 py-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-800 border border-purple-200 truncate">
-                          🏡 {day.holidayTitle}
-                        </span>
-                      )}
+                          {isHostelLeave && (
+                            <span className="block px-2 py-0.5 rounded text-[9px] font-bold bg-purple-100 text-purple-800 border border-purple-200 truncate">
+                              🏡 {day.holidayTitle}
+                            </span>
+                          )}
 
-                      {isHoliday && (
-                        <span className="block px-2 py-0.5 rounded text-[9px] font-bold bg-teal-100 text-teal-800 border border-teal-200 truncate">
-                          🌴 {day.holidayTitle}
-                        </span>
-                      )}
+                          {isHoliday && (
+                            <span className="block px-2 py-0.5 rounded text-[9px] font-bold bg-teal-100 text-teal-800 border border-teal-200 truncate">
+                              🌴 {day.holidayTitle}
+                            </span>
+                          )}
 
-                      {!day.isHoliday && (
-                        <span className="block px-2 py-0.5 rounded text-[9px] font-semibold text-slate-500 bg-slate-100 truncate">
-                          {day.sessionsCount > 0 ? `${day.sessionsCount} Sessions` : 'Working Day'}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+                          {!day.isHoliday && (
+                            <span className="block px-2 py-0.5 rounded text-[9px] font-semibold text-slate-500 bg-slate-100 truncate">
+                              {day.sessionsCount > 0 ? `${day.sessionsCount} Sessions` : 'Working Day'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
         {/* Declared Holidays List Section */}

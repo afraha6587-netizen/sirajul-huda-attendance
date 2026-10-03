@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Calendar, Plus, CheckCircle2, Sparkles, AlertCircle, ShieldCheck, Edit2 } from 'lucide-react';
+import { Calendar, Plus, CheckCircle2, Sparkles, AlertCircle, ShieldCheck, Edit2, Trash2 } from 'lucide-react';
 import api from '../utils/api';
 import { AcademicYear } from '../types';
 import { Navbar } from '../components/Navbar';
@@ -74,6 +74,25 @@ export const AcademicYearsPage: React.FC = () => {
       alert(`Academic Year ${yr.name} is now the active system year!`);
     } catch (err: any) {
       alert(err.response?.data?.error || 'Failed to set active academic year');
+    }
+  };
+
+  const handleDeleteAcademicYear = async (yr: AcademicYear) => {
+    if (yr.isCurrent) {
+      alert('Cannot delete the currently active academic year. Switch active year first.');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete Academic Year ${yr.name}? This will remove all associated month definitions and records.`)) {
+      return;
+    }
+
+    try {
+      await api.delete(`/academic-years/${yr.id}`);
+      await refreshAcademicData();
+      alert(`Academic Year ${yr.name} deleted successfully!`);
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to delete academic year');
     }
   };
 
@@ -152,13 +171,22 @@ export const AcademicYearsPage: React.FC = () => {
                   </button>
 
                   {!yr.isCurrent ? (
-                    <button
-                      onClick={() => handleSetActiveYear(yr)}
-                      className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-sm flex items-center gap-2 transition-all"
-                    >
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      <span>Set Active</span>
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleSetActiveYear(yr)}
+                        className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-sm flex items-center gap-2 transition-all"
+                      >
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <span>Set Active</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteAcademicYear(yr)}
+                        className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs transition-all border border-rose-200"
+                        title="Delete Academic Year"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
                   ) : (
                     <span className="px-3 py-2 rounded-xl bg-emerald-50 text-emerald-700 text-xs font-extrabold border border-emerald-200 flex items-center gap-1.5">
                       <ShieldCheck className="w-4 h-4 text-emerald-600" />

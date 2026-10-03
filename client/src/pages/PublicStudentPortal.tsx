@@ -85,85 +85,136 @@ export const PublicStudentPortal: React.FC = () => {
 
       {/* Printable Certificate Modal/View */}
       {showCertificate && certificateData ? (
-        <div className="p-8 max-w-4xl mx-auto w-full bg-white text-slate-900 rounded-3xl shadow-2xl space-y-6 border-4 border-double border-slate-900 my-8">
+        <div className="p-8 sm:p-12 max-w-4xl mx-auto w-full bg-white text-slate-900 rounded-3xl shadow-2xl space-y-6 border-8 border-double border-slate-900 my-8 relative print:m-0 print:border-4 print:shadow-none print:max-w-none">
+          {/* Top Control Bar (Hidden when printing) */}
           <div className="no-print flex items-center justify-between border-b border-slate-200 pb-4">
             <button
               onClick={() => setShowCertificate(false)}
-              className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 flex items-center gap-2"
+              className="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 flex items-center gap-2 transition-colors"
             >
-              <ArrowLeft className="w-4 h-4" /> Back to Scorecard
+              <ArrowLeft className="w-4 h-4" /> Back to Search
             </button>
             <button
               onClick={handlePrintCertificate}
-              className="px-5 py-2.5 rounded-xl bg-brand-600 text-white font-bold text-xs shadow-md flex items-center gap-2"
+              className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-colors"
             >
-              <Printer className="w-4 h-4" /> Print Certificate (A4)
+              <Printer className="w-4 h-4" /> Print Official NOC (A4)
             </button>
           </div>
 
-          {/* Certificate Body */}
-          <div className="text-center space-y-3 pt-4">
-            <img src="/logo.png" alt="Sirajul Huda Logo" className="w-16 h-16 object-contain mx-auto mb-2" />
-            <h1 className="text-xl font-black uppercase tracking-tight text-slate-900">
+          {/* Certificate Reference & Date */}
+          <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 pb-3">
+            <span>Ref: SHC/NOC/{certificateData.student?.registerNumber || '101'}/{certificateData.year}</span>
+            <span>Date of Issue: {new Date().toLocaleDateString('en-GB')}</span>
+          </div>
+
+          {/* Official College Header */}
+          <div className="text-center space-y-2 pt-2">
+            <img src="/logo.png" alt="Sirajul Huda Logo" className="w-20 h-20 object-contain mx-auto mb-1 p-1 bg-white rounded-2xl shadow-sm border border-slate-200" />
+            <h1 className="text-2xl font-black uppercase tracking-tight text-slate-900 leading-tight">
               {certificateData.collegeName}
             </h1>
-            <p className="text-xs font-extrabold uppercase text-slate-600">
+            <p className="text-xs font-extrabold uppercase text-slate-600 tracking-wide">
+              NADAPURAM, KUTTIADY ROAD, KOZHIKODE, KERALA
+            </p>
+            <p className="text-[11px] font-bold text-brand-800 uppercase tracking-widest">
               Affiliated to {certificateData.university}
             </p>
-            <div className="inline-block px-4 py-1.5 rounded-full bg-slate-900 text-white font-black text-xs uppercase tracking-widest mt-2">
-              ATTENDANCE NOC & PERFORMANCE CERTIFICATE
+
+            <div className="py-2">
+              <div className="inline-block px-6 py-2 rounded-full bg-slate-900 text-white font-black text-xs uppercase tracking-widest shadow-sm">
+                ATTENDANCE NOC & NO-OBJECTION CERTIFICATE
+              </div>
             </div>
           </div>
 
-          <div className="pt-4 text-center text-xs font-semibold text-slate-700 space-y-2">
-            <p className="text-sm">
-              This is to certify that student <strong className="text-slate-950 font-black text-base">{certificateData.student?.name}</strong> (Register No: <strong>{certificateData.student?.registerNumber}</strong>, Roll No: #{certificateData.student?.rollNumber}) of Class <strong className="text-slate-950 font-extrabold">{certificateData.student?.className}</strong> has secured an overall attendance performance of:
+          {/* Certificate Body Statement */}
+          <div className="pt-4 text-center text-xs font-medium text-slate-700 space-y-3 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-sm text-slate-800">
+              This is to officially certify that <strong className="text-slate-950 font-black text-base">{certificateData.student?.name}</strong> (Register No: <strong className="text-brand-900 font-extrabold">{certificateData.student?.registerNumber}</strong>, Roll No: <strong>#{certificateData.student?.rollNumber}</strong>), registered student of Class <strong className="text-slate-950 font-black">{certificateData.student?.className}</strong>, has completed the academic attendance evaluation for the month of:
             </p>
-            <div className="text-4xl font-black text-slate-900 py-3">
-              {certificateData.overallPercentage}%
+            <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex items-center justify-around text-center my-2">
+              <div>
+                <span className="text-[10px] text-slate-400 font-bold uppercase block">Academic Month</span>
+                <span className="text-sm font-extrabold text-slate-900">{certificateData.monthName} {certificateData.year}</span>
+              </div>
+              <div className="h-8 w-px bg-slate-200"></div>
+              <div>
+                <span className="text-[10px] text-slate-400 font-bold uppercase block">Net Working Days</span>
+                <span className="text-sm font-extrabold text-slate-900">{certificateData.workingDays} Days</span>
+              </div>
+              <div className="h-8 w-px bg-slate-200"></div>
+              <div>
+                <span className="text-[10px] text-slate-400 font-bold uppercase block">Overall Attendance</span>
+                <span className={`text-xl font-black ${certificateData.overallPercentage >= 75 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                  {certificateData.overallPercentage}%
+                </span>
+              </div>
             </div>
-            <p className="text-xs">
-              During academic month <strong>{certificateData.monthName} {certificateData.year}</strong> (Total Working Days: {certificateData.workingDays}).
-            </p>
           </div>
 
           {/* Subject Breakdown Table */}
-          <div className="pt-4">
+          <div className="pt-2">
+            <h3 className="text-[11px] font-black text-slate-800 uppercase tracking-wider mb-2">Subject Attendance Breakdown</h3>
             <table className="w-full text-center border-collapse border border-slate-300 text-xs">
               <thead>
                 <tr className="bg-slate-900 text-white font-bold uppercase text-[10px]">
                   <th className="border border-slate-700 px-3 py-2 text-left">Subject Name</th>
                   <th className="border border-slate-700 px-3 py-2">Usthad / Teacher</th>
-                  <th className="border border-slate-700 px-3 py-2">Attended</th>
-                  <th className="border border-slate-700 px-3 py-2">Total Taken</th>
-                  <th className="border border-slate-700 px-3 py-2">Percentage %</th>
+                  <th className="border border-slate-700 px-3 py-2">Classes Attended</th>
+                  <th className="border border-slate-700 px-3 py-2">Total Classes Taken</th>
+                  <th className="border border-slate-700 px-3 py-2">Attendance %</th>
                 </tr>
               </thead>
               <tbody className="font-semibold text-slate-800">
                 {certificateData.subjectBreakdown.map((sb: any, i: number) => (
-                  <tr key={i} className="border-b border-slate-200">
-                    <td className="border border-slate-300 px-3 py-2 text-left font-bold">{sb.subjectName} ({sb.arabicName})</td>
-                    <td className="border border-slate-300 px-3 py-2">{sb.teacherName}</td>
-                    <td className="border border-slate-300 px-3 py-2">{sb.attended}</td>
-                    <td className="border border-slate-300 px-3 py-2">{sb.taken}</td>
-                    <td className="border border-slate-300 px-3 py-2 font-black">{sb.percentage}%</td>
+                  <tr key={i} className="border-b border-slate-200 odd:bg-white even:bg-slate-50/60">
+                    <td className="border border-slate-300 px-3 py-2 text-left font-bold text-slate-900">
+                      {sb.subjectName}{' '}
+                      <span className="font-arabic font-normal text-teal-700 text-xs ml-1">({sb.arabicName})</span>
+                    </td>
+                    <td className="border border-slate-300 px-3 py-2 text-slate-700 font-bold">{sb.teacherName}</td>
+                    <td className="border border-slate-300 px-3 py-2 text-slate-900">{sb.attended}</td>
+                    <td className="border border-slate-300 px-3 py-2 text-slate-900">{sb.taken}</td>
+                    <td className={`border border-slate-300 px-3 py-2 font-black ${sb.percentage >= 75 ? 'text-emerald-700' : 'text-rose-600 bg-rose-50'}`}>
+                      {sb.percentage}%
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
+          {/* Clearance Verification Box */}
+          <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2 text-emerald-900 font-bold">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+              <span>
+                Status: {certificateData.overallPercentage >= 75 ? 'ELIGIBLE / NOC GRANTED FOR EXAMINATIONS & LEAVE' : 'ATTENDANCE BELOW THRESHOLD (CONDONATION REQUIRED)'}
+              </span>
+            </div>
+            <span className="px-3 py-1 bg-emerald-700 text-white rounded-full font-black text-[10px] uppercase tracking-wider">
+              {certificateData.overallPercentage >= 75 ? 'PASSED / NOC VALID' : 'WARNING'}
+            </span>
+          </div>
+
           {/* Certificate Signatures */}
           <div className="pt-12 grid grid-cols-2 text-center text-xs font-bold border-t border-slate-300">
             <div>
-              <div className="h-12"></div>
-              <p className="border-t border-slate-400 pt-1 max-w-xs mx-auto text-slate-600 uppercase">
+              <div className="h-14 flex items-end justify-center pb-1">
+                <span className="text-[10px] text-slate-400 italic font-mono">[ Digital Approval ]</span>
+              </div>
+              <p className="border-t border-slate-400 pt-1.5 max-w-xs mx-auto text-slate-700 uppercase font-extrabold">
                 Usthad / Class Teacher Signature
               </p>
             </div>
             <div>
-              <div className="h-12"></div>
-              <p className="border-t border-slate-400 pt-1 max-w-xs mx-auto text-slate-900 uppercase font-black">
+              <div className="h-14 flex items-end justify-center pb-1">
+                <div className="w-16 h-16 rounded-full border-2 border-dashed border-slate-300 flex items-center justify-center text-[9px] text-slate-400 font-bold uppercase">
+                  College Seal
+                </div>
+              </div>
+              <p className="border-t border-slate-400 pt-1.5 max-w-xs mx-auto text-slate-950 uppercase font-black">
                 Principal & Official College Seal
               </p>
             </div>
