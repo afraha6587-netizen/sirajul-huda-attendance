@@ -204,7 +204,7 @@ export const MonthlyReport: React.FC = () => {
             </div>
 
             {/* Main Student Attendance Table (Swipable on mobile) */}
-            <div className="overflow-x-auto touch-pan-y rounded-xl border border-slate-300 shadow-xs">
+            <div className="overflow-x-auto touch-auto rounded-xl border border-slate-300 shadow-xs">
               <table className="w-full text-center border-collapse text-xs min-w-[850px]">
                 <thead>
                   <tr className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white font-bold uppercase tracking-wider text-[11px]">
@@ -345,7 +345,7 @@ export const MonthlyReport: React.FC = () => {
                 </h3>
               </div>
 
-              <div className="overflow-x-auto touch-pan-y rounded-xl border border-slate-300">
+              <div className="overflow-x-auto touch-auto rounded-xl border border-slate-300">
                 <table className="w-full text-left border-collapse text-xs min-w-[650px]">
                   <thead className="bg-slate-900 text-white font-bold uppercase text-[10px]">
                     <tr>
