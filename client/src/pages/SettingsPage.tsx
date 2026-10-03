@@ -107,6 +107,52 @@ export const SettingsPage: React.FC = () => {
             </div>
           </form>
         </div>
+
+        {/* PWA Application Update Section */}
+        <div className="bg-white rounded-3xl p-8 border border-slate-200/80 shadow-xs space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div>
+              <h3 className="text-sm font-extrabold text-slate-900">Application Updates & Offline Cache</h3>
+              <p className="text-xs text-slate-500 mt-0.5">Check for live deployments and force update installed application on phone/PC</p>
+            </div>
+            <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
+              PWA SW v4
+            </span>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center gap-4 pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                if ('serviceWorker' in navigator && (window as any).swRegistration) {
+                  (window as any).swRegistration.update();
+                  alert('Checked for updates! If a new version is live, an update prompt will appear at the top.');
+                } else {
+                  window.location.reload();
+                }
+              }}
+              className="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-sm flex items-center justify-center gap-2"
+            >
+              <span>Check for New Updates</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={async () => {
+                if (window.confirm('Force clear app cache and load latest live version?')) {
+                  if ('caches' in window) {
+                    const keys = await caches.keys();
+                    await Promise.all(keys.map((k) => caches.delete(k)));
+                  }
+                  window.location.reload();
+                }
+              }}
+              className="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold border border-slate-200 flex items-center justify-center gap-2"
+            >
+              <span>Force Clear Cache & Reload</span>
+            </button>
+          </div>
+        </div>
       </main>
     </div>
   );

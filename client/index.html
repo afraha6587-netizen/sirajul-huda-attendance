@@ -40,16 +40,31 @@
         sessionStorage.removeItem('reloaded_for_update');
       });
 
-      // Register PWA ServiceWorker for Standalone Mobile Application Installation (WebAPK)
+      // Register PWA ServiceWorker for Mobile App & Automatic Update Prompt
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', function() {
           navigator.serviceWorker.register('/sw.js').then(function(reg) {
+            window.swRegistration = reg;
+
+            // Check for updates every 60 seconds
+            setInterval(function() {
+              reg.update();
+            }, 60000);
+
+            // Check for updates when tab becomes visible
+            document.addEventListener('visibilitychange', function() {
+              if (document.visibilityState === 'visible') {
+                reg.update();
+              }
+            });
+
             reg.onupdatefound = function() {
               const installingWorker = reg.installing;
               if (installingWorker) {
                 installingWorker.onstatechange = function() {
                   if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                    window.location.reload();
+                    console.log('New update available for Sirajul Huda App!');
+                    window.dispatchEvent(new CustomEvent('pwa-update-available', { detail: reg }));
                   }
                 };
               }
