@@ -12,7 +12,6 @@ import {
   ChevronRight,
   Sparkles,
   Info,
-  Send,
 } from 'lucide-react';
 import api from '../utils/api';
 import { AcademicMonth, AcademicYear } from '../types';
@@ -168,23 +167,13 @@ export const HolidaysPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-            <button
-              onClick={() => navigate('/parent-broadcast')}
-              className="w-full sm:w-auto px-4 py-3 rounded-xl bg-purple-900 hover:bg-purple-800 text-purple-100 font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-colors border border-purple-700"
-            >
-              <Send className="w-4 h-4 text-purple-300" />
-              <span>Send Parent Broadcast / Notification</span>
-            </button>
-
-            <button
-              onClick={() => handleOpenModal()}
-              className="w-full sm:w-auto px-5 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Declare Hostel Leave / Holiday</span>
-            </button>
-          </div>
+          <button
+            onClick={() => handleOpenModal()}
+            className="w-full md:w-auto px-5 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Declare Hostel Leave / Holiday</span>
+          </button>
         </div>
 
         {/* Month Summary Metrics Bar */}
