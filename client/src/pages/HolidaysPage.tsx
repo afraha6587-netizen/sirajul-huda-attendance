@@ -233,7 +233,7 @@ export const HolidaysPage: React.FC = () => {
           </div>
 
           {/* Swipable Grid Body on Mobile */}
-          <div className="overflow-x-auto touch-pan-x">
+          <div className="overflow-x-auto touch-pan-y">
             <div className="min-w-[700px]">
               {/* Weekday Grid Headers */}
               <div className="grid grid-cols-7 bg-slate-100 border-b border-slate-200 text-center py-3 text-xs font-bold text-slate-700 uppercase tracking-wider">

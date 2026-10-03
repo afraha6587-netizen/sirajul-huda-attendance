@@ -166,7 +166,7 @@ export const MarkDailyAttendance: React.FC = () => {
         )}
 
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-          <div className="overflow-x-auto touch-pan-x w-full">
+          <div className="overflow-x-auto touch-pan-y w-full">
             <table className="w-full text-left text-xs min-w-[650px]">
               <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-100">
                 <tr>
