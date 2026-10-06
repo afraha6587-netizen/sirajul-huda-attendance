@@ -5,6 +5,7 @@ import api from '../utils/api';
 import { Student, Class } from '../types';
 import { Navbar } from '../components/Navbar';
 import { Modal } from '../components/Modal';
+import { StudentDetailModal } from '../components/StudentDetailModal';
 
 export const Students: React.FC = () => {
   const [students, setStudents] = useState<Student[]>([]);
@@ -375,69 +376,12 @@ export const Students: React.FC = () => {
         </form>
       </Modal>
 
-      {/* Profile Detail Modal */}
+      {/* Profile Detail & Remarks Modal */}
       {profileStudent && (
-        <Modal
-          isOpen={Boolean(profileStudent)}
+        <StudentDetailModal
+          studentId={profileStudent.id}
           onClose={() => setProfileStudent(null)}
-          title={`Student Profile: ${profileStudent.name}`}
-          maxWidth="max-w-2xl"
-        >
-          <div className="space-y-6">
-            <div className="flex items-center gap-4 bg-brand-50 p-4 rounded-2xl border border-brand-200">
-              <div className="w-14 h-14 rounded-full bg-brand-600 text-white font-extrabold text-xl flex items-center justify-center shadow-md">
-                {profileStudent.name.charAt(0)}
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">{profileStudent.name}</h3>
-                <div className="flex items-center gap-3 text-xs text-slate-600 mt-1 font-semibold">
-                  <span>
-                    Reg No: <strong className="text-brand-700">{profileStudent.registerNumber}</strong>
-                  </span>
-                  <span>•</span>
-                  <span>
-                    Roll No: <strong>#{profileStudent.rollNumber}</strong>
-                  </span>
-                  <span>•</span>
-                  <span>
-                    Class: <strong>{profileStudent.class?.name}</strong>
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">
-                Attendance Session Logs ({profileStudent.attendanceRecords?.length || 0})
-              </h4>
-              <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100 text-xs">
-                {profileStudent.attendanceRecords && profileStudent.attendanceRecords.length > 0 ? (
-                  profileStudent.attendanceRecords.map((r: any) => (
-                    <div key={r.id} className="p-3 flex items-center justify-between">
-                      <div>
-                        <div className="font-bold text-slate-800">{r.session?.classSubject?.subject?.name}</div>
-                        <div className="text-[10px] text-slate-500">
-                          Date: {r.session?.date} • Teacher: {r.session?.classSubject?.teacher?.name}
-                        </div>
-                      </div>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          r.status === 'PRESENT'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-rose-100 text-rose-800'
-                        }`}
-                      >
-                        {r.status}
-                      </span>
-                    </div>
-                  ))
-                ) : (
-                  <div className="p-4 text-center text-slate-400">No session attendance records found</div>
-                )}
-              </div>
-            </div>
-          </div>
-        </Modal>
+        />
       )}
     </div>
   );

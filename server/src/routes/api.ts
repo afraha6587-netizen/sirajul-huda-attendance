@@ -10,10 +10,13 @@ import {
 import { getClasses, getClassById, createClass, updateClass, deleteClass } from '../controllers/classController';
 import {
   getStudents, getStudentById, createStudent, updateStudent, deleteStudent,
-  getStudentCertificate,
+  getStudentCertificate, getStudentRemarks, addStudentRemark, deleteStudentRemark,
 } from '../controllers/studentController';
 import { getSubjects, createSubject, updateSubject, deleteSubject } from '../controllers/subjectController';
-import { getTeachers, createTeacher, updateTeacher, deleteTeacher, approveTeacher } from '../controllers/teacherController';
+import {
+  getTeachers, createTeacher, updateTeacher, deleteTeacher, approveTeacher,
+  getTeacherAttendance, saveTeacherAttendance, deleteTeacherAttendance,
+} from '../controllers/teacherController';
 import { getClassSubjects, assignSubjectToClass, removeSubjectFromClass } from '../controllers/classSubjectController';
 import {
   saveAttendanceSession, saveDailyAttendance, getDailyAttendance,
@@ -84,10 +87,13 @@ router.post('/classes', requireAdmin, createClass);
 router.put('/classes/:id', requireAdmin, updateClass);
 router.delete('/classes/:id', requireAdmin, deleteClass);
 
-// Student Routes & Certificates
+// Student Routes, Certificates & Remarks
 router.get('/students', getStudents);
 router.get('/students/:id', getStudentById);
 router.get('/students/:id/certificate', getStudentCertificate);
+router.get('/students/:id/remarks', getStudentRemarks);
+router.post('/students/:id/remarks', addStudentRemark);
+router.delete('/students/remarks/:remarkId', deleteStudentRemark);
 router.post('/students', requireAdmin, createStudent);
 router.put('/students/:id', requireAdmin, updateStudent);
 router.delete('/students/:id', requireAdmin, deleteStudent);
@@ -98,12 +104,15 @@ router.post('/subjects', requireAdmin, createSubject);
 router.put('/subjects/:id', requireAdmin, updateSubject);
 router.delete('/subjects/:id', requireAdmin, deleteSubject);
 
-// Teacher Routes
+// Teacher Routes & Teacher Attendance
 router.get('/teachers', getTeachers);
 router.post('/teachers', requireAdmin, createTeacher);
 router.put('/teachers/:id', requireAdmin, updateTeacher);
 router.put('/teachers/:id/approve', requireAdmin, approveTeacher);
 router.delete('/teachers/:id', requireAdmin, deleteTeacher);
+router.get('/teacher-attendance', getTeacherAttendance);
+router.post('/teacher-attendance', saveTeacherAttendance);
+router.delete('/teacher-attendance/:id', deleteTeacherAttendance);
 
 // Class-Subject Assignment Routes
 router.get('/class-subjects', getClassSubjects);

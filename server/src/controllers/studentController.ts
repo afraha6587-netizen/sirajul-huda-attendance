@@ -202,3 +202,54 @@ export const getStudentCertificate = async (req: Request, res: Response) => {
     res.status(500).json({ error: error.message || 'Failed to generate certificate' });
   }
 };
+
+export const getStudentRemarks = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const remarks = await prisma.studentRemark.findMany({
+      where: { studentId: id },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(remarks);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to fetch student remarks' });
+  }
+};
+
+export const addStudentRemark = async (req: any, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { remark } = req.body;
+
+    if (!remark || !String(remark).trim()) {
+      return res.status(400).json({ error: 'Remark content is required' });
+    }
+
+    const createdById = req.user?.id || 'admin';
+    const createdByName = req.user?.name || req.user?.email || 'System Admin';
+
+    const newRemark = await prisma.studentRemark.create({
+      data: {
+        studentId: id,
+        remark: String(remark).trim(),
+        createdById,
+        createdByName,
+      },
+    });
+
+    res.status(201).json(newRemark);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to add student remark' });
+  }
+};
+
+export const deleteStudentRemark = async (req: Request, res: Response) => {
+  try {
+    const { remarkId } = req.params;
+    await prisma.studentRemark.delete({ where: { id: remarkId } });
+    res.json({ message: 'Remark deleted successfully' });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to delete remark' });
+  }
+};
+

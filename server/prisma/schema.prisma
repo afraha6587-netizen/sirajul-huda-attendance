@@ -27,6 +27,7 @@ model Teacher {
   code          String         @unique
   active        Boolean        @default(true)
   classSubjects ClassSubject[]
+  teacherAttendances TeacherAttendance[]
   createdAt     DateTime       @default(now())
 }
 
@@ -77,6 +78,7 @@ model Class {
   classSubjects      ClassSubject[]
   attendanceSessions AttendanceSession[]
   dailyAttendances   DailyAttendance[]
+  teacherAttendances TeacherAttendance[]
 }
 
 model Student {
@@ -93,6 +95,7 @@ model Student {
   dateJoined        DateTime           @default(now())
   attendanceRecords AttendanceRecord[]
   dailyAttendances  DailyAttendance[]
+  remarks           StudentRemark[]
 }
 
 model Subject {
@@ -191,3 +194,30 @@ model AuditLog {
   details   String?
   timestamp DateTime @default(now())
 }
+
+model TeacherAttendance {
+  id          String   @id @default(uuid())
+  teacherId   String
+  teacher     Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  date        String   // YYYY-MM-DD
+  classId     String?  // Optional: specific class
+  class       Class?   @relation(fields: [classId], references: [id], onDelete: SetNull)
+  period      Int?     // Optional: specific period (1, 2, 3, 4)
+  status      String   @default("ABSENT") // "ABSENT", "LEAVE"
+  reason      String?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model StudentRemark {
+  id            String   @id @default(uuid())
+  studentId     String
+  student       Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  remark        String
+  createdById   String
+  createdByName String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+

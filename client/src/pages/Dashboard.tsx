@@ -11,16 +11,23 @@ import {
   PlusCircle,
   ArrowUpRight,
   TrendingUp,
+  UserX,
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import api from '../utils/api';
 import { Navbar } from '../components/Navbar';
 import { useAcademic } from '../context/AcademicContext';
+import { StudentsListModal } from '../components/StudentsListModal';
+import { TeacherAttendanceModal } from '../components/TeacherAttendanceModal';
 
 export const Dashboard: React.FC = () => {
   const { selectedMonthId } = useAcademic();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // Modals state
+  const [showStudentsModal, setShowStudentsModal] = useState(false);
+  const [showTeacherAttendanceModal, setShowTeacherAttendanceModal] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -57,14 +64,36 @@ export const Dashboard: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
           {kpiCards.map((card, idx) => {
             const Icon = card.icon;
+            const isStudentsCard = card.title === 'Total Students';
+            const isTeachersCard = card.title === 'Active Teachers';
+
             return (
               <div
                 key={idx}
-                className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between hover:shadow-md transition-shadow"
+                onClick={() => {
+                  if (isStudentsCard) setShowStudentsModal(true);
+                  if (isTeachersCard) setShowTeacherAttendanceModal(true);
+                }}
+                className={`bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between transition-all ${
+                  isStudentsCard || isTeachersCard
+                    ? 'cursor-pointer hover:border-brand-500 hover:shadow-md hover:scale-[1.02]'
+                    : ''
+                }`}
+                title={isStudentsCard ? 'Click to view active students roster & remarks' : isTeachersCard ? 'Click to log teacher leave/absence' : ''}
               >
                 <div>
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{card.title}</p>
                   <h3 className="text-2xl font-extrabold text-slate-900 mt-1">{card.value}</h3>
+                  {isStudentsCard && (
+                    <span className="text-[10px] font-bold text-brand-600 underline mt-0.5 inline-block">
+                      View Roster & Remarks →
+                    </span>
+                  )}
+                  {isTeachersCard && (
+                    <span className="text-[10px] font-bold text-amber-600 underline mt-0.5 inline-block">
+                      Log Teacher Leave →
+                    </span>
+                  )}
                 </div>
                 <div className={`w-12 h-12 rounded-xl ${card.bg} ${card.color} flex items-center justify-center`}>
                   <Icon className="w-6 h-6" />
@@ -87,6 +116,13 @@ export const Dashboard: React.FC = () => {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => setShowTeacherAttendanceModal(true)}
+              className="px-4 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shadow-md flex items-center gap-2 transition-colors"
+            >
+              <UserX className="w-4 h-4" />
+              <span>Teacher Leave Log</span>
+            </button>
             <Link
               to="/mark-attendance"
               className="px-5 py-3 rounded-xl bg-white text-brand-700 font-bold text-xs shadow-md hover:bg-brand-50 flex items-center gap-2 transition-colors"
@@ -249,6 +285,14 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       </main>
+
+      {/* Interactive Modals */}
+      {showStudentsModal && (
+        <StudentsListModal onClose={() => setShowStudentsModal(false)} />
+      )}
+      {showTeacherAttendanceModal && (
+        <TeacherAttendanceModal onClose={() => setShowTeacherAttendanceModal(false)} />
+      )}
     </div>
   );
 };

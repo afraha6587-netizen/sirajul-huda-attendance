@@ -187,3 +187,69 @@ export const approveTeacher = async (req: AuthRequest, res: Response) => {
     res.status(400).json({ error: error.message || 'Failed to approve teacher' });
   }
 };
+
+export const getTeacherAttendance = async (req: AuthRequest, res: Response) => {
+  try {
+    const { teacherId, date } = req.query;
+    const where: any = {};
+
+    if (teacherId) where.teacherId = String(teacherId);
+    if (date) where.date = String(date);
+
+    const records = await prisma.teacherAttendance.findMany({
+      where,
+      include: {
+        teacher: true,
+        class: true,
+      },
+      orderBy: { date: 'desc' },
+    });
+
+    res.json(records);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to fetch teacher attendance' });
+  }
+};
+
+export const saveTeacherAttendance = async (req: AuthRequest, res: Response) => {
+  try {
+    const { teacherId, date, classId, period, status, reason } = req.body;
+
+    if (!teacherId || !date) {
+      return res.status(400).json({ error: 'Teacher ID and date are required' });
+    }
+
+    const createdById = req.user?.id || 'system';
+
+    const record = await prisma.teacherAttendance.create({
+      data: {
+        teacherId,
+        date: String(date).trim(),
+        classId: classId || null,
+        period: period ? Number(period) : null,
+        status: status || 'ABSENT',
+        reason: reason ? String(reason).trim() : null,
+        createdById,
+      },
+      include: {
+        teacher: true,
+        class: true,
+      },
+    });
+
+    res.status(201).json(record);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to save teacher attendance' });
+  }
+};
+
+export const deleteTeacherAttendance = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    await prisma.teacherAttendance.delete({ where: { id } });
+    res.json({ message: 'Teacher attendance record deleted' });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to delete teacher attendance' });
+  }
+};
+
