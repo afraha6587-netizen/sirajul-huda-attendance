@@ -32,7 +32,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
 
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(() => {
+    try {
+      return !(localStorage.getItem('token') && localStorage.getItem('user'));
+    } catch {
+      return true;
+    }
+  });
 
   useEffect(() => {
     if (token) {

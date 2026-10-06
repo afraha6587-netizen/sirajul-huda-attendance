@@ -2,9 +2,6 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <meta http-equiv="Pragma" content="no-cache" />
-    <meta http-equiv="Expires" content="0" />
     <link rel="icon" type="image/png" href="/logo.png" />
     <link rel="shortcut icon" href="/logo.png" />
     <link rel="apple-touch-icon" href="/logo.png" />
@@ -47,10 +44,10 @@
             window.swRegistration = reg;
             reg.update();
 
-            // Check for updates every 15 seconds
+            // Check for updates every 5 minutes
             setInterval(function() {
               reg.update();
-            }, 15000);
+            }, 300000);
 
             // Check for updates when tab becomes visible
             document.addEventListener('visibilitychange', function() {
