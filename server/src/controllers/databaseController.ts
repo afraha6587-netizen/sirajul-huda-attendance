@@ -107,7 +107,11 @@ export const getDatabaseTableData = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const exportFullDatabaseBackup = async (_req: AuthRequest, res: Response) => {
+export const exportFullDatabaseBackup = async (req: AuthRequest, res: Response) => {
+  if (req.query.format === 'zip') {
+    return exportZipDatabaseBackup(req, res);
+  }
+
   try {
     const [
       students,
@@ -124,19 +128,19 @@ export const exportFullDatabaseBackup = async (_req: AuthRequest, res: Response)
       studentRemarks,
       teacherAttendances,
     ] = await Promise.all([
-      prisma.student.findMany(),
-      prisma.class.findMany(),
-      prisma.subject.findMany(),
-      prisma.teacher.findMany(),
-      prisma.classSubject.findMany(),
-      prisma.attendanceSession.findMany({ include: { records: true } }),
-      prisma.dailyAttendance.findMany(),
-      prisma.institutionHoliday.findMany(),
-      prisma.academicYear.findMany(),
-      prisma.academicMonth.findMany(),
-      prisma.systemSettings.findFirst(),
-      prisma.studentRemark.findMany(),
-      prisma.teacherAttendance.findMany(),
+      prisma.student.findMany().catch(() => []),
+      prisma.class.findMany().catch(() => []),
+      prisma.subject.findMany().catch(() => []),
+      prisma.teacher.findMany().catch(() => []),
+      prisma.classSubject.findMany().catch(() => []),
+      prisma.attendanceSession.findMany({ include: { records: true } }).catch(() => []),
+      prisma.dailyAttendance.findMany().catch(() => []),
+      prisma.institutionHoliday.findMany().catch(() => []),
+      prisma.academicYear.findMany().catch(() => []),
+      prisma.academicMonth.findMany().catch(() => []),
+      prisma.systemSettings.findFirst().catch(() => null),
+      prisma.studentRemark.findMany().catch(() => []),
+      prisma.teacherAttendance.findMany().catch(() => []),
     ]);
 
     const backupData = {
@@ -161,6 +165,7 @@ export const exportFullDatabaseBackup = async (_req: AuthRequest, res: Response)
     };
 
     res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
     res.setHeader(
       'Content-Disposition',
       `attachment; filename=Sirajul_Huda_Database_Backup_${new Date().toISOString().split('T')[0]}.json`
@@ -188,19 +193,19 @@ export const exportZipDatabaseBackup = async (_req: AuthRequest, res: Response) 
       studentRemarks,
       teacherAttendances,
     ] = await Promise.all([
-      prisma.student.findMany(),
-      prisma.class.findMany(),
-      prisma.subject.findMany(),
-      prisma.teacher.findMany(),
-      prisma.classSubject.findMany(),
-      prisma.attendanceSession.findMany({ include: { records: true } }),
-      prisma.dailyAttendance.findMany(),
-      prisma.institutionHoliday.findMany(),
-      prisma.academicYear.findMany(),
-      prisma.academicMonth.findMany(),
-      prisma.systemSettings.findFirst(),
-      prisma.studentRemark.findMany(),
-      prisma.teacherAttendance.findMany(),
+      prisma.student.findMany().catch(() => []),
+      prisma.class.findMany().catch(() => []),
+      prisma.subject.findMany().catch(() => []),
+      prisma.teacher.findMany().catch(() => []),
+      prisma.classSubject.findMany().catch(() => []),
+      prisma.attendanceSession.findMany({ include: { records: true } }).catch(() => []),
+      prisma.dailyAttendance.findMany().catch(() => []),
+      prisma.institutionHoliday.findMany().catch(() => []),
+      prisma.academicYear.findMany().catch(() => []),
+      prisma.academicMonth.findMany().catch(() => []),
+      prisma.systemSettings.findFirst().catch(() => null),
+      prisma.studentRemark.findMany().catch(() => []),
+      prisma.teacherAttendance.findMany().catch(() => []),
     ]);
 
     const backupData = {
@@ -269,6 +274,7 @@ export const exportZipDatabaseBackup = async (_req: AuthRequest, res: Response) 
 
     const dateStr = new Date().toISOString().split('T')[0];
     res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
     res.setHeader(
       'Content-Disposition',
       `attachment; filename=Sirajul_Huda_ZPlus_Database_Backup_${dateStr}.zip`

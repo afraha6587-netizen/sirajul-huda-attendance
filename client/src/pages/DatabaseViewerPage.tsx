@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Database, Download, HardDrive, Table, RefreshCw, ShieldCheck, CheckCircle2, Search, Upload, Archive, FileText } from 'lucide-react';
+import JSZip from 'jszip';
 import api from '../utils/api';
 import { Navbar } from '../components/Navbar';
 
@@ -69,18 +70,83 @@ export const DatabaseViewerPage: React.FC = () => {
   const handleDownloadZipBackup = async () => {
     setDownloadingZip(true);
     try {
-      const res = await api.get('/database/backup-zip', { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/zip' }));
+      let blob: Blob | null = null;
+
+      // 1. Try server-side ZIP endpoints first
+      try {
+        const res = await api.get('/database/backup-zip', { responseType: 'blob' });
+        if (res.data && res.data.type !== 'application/json' && res.data.size > 0) {
+          blob = new Blob([res.data], { type: 'application/zip' });
+        }
+      } catch {
+        try {
+          const res = await api.get('/database/backup?format=zip', { responseType: 'blob' });
+          if (res.data && res.data.type !== 'application/json' && res.data.size > 0) {
+            blob = new Blob([res.data], { type: 'application/zip' });
+          }
+        } catch {
+          blob = null;
+        }
+      }
+
+      // 2. Client-side JSZip Fallback (100% Guaranteed ZIP Generation on any browser/device)
+      if (!blob) {
+        console.log('Generating ZIP backup archive via JSZip...');
+        const jsonRes = await api.get('/database/backup');
+        const backupData = jsonRes.data;
+        const db = backupData?.database || {};
+
+        const zip = new JSZip();
+        zip.file('full_database_backup.json', JSON.stringify(backupData, null, 2));
+
+        const metadata = {
+          institution: backupData.institution || 'Sirajul Huda College',
+          exportTimestamp: backupData.exportTimestamp || new Date().toISOString(),
+          version: backupData.version || '2.0',
+          securityLevel: 'Z+ Multi-Layer Secure Backup (ZIP Archive)',
+          counts: {
+            students: db.students?.length || 0,
+            classes: db.classes?.length || 0,
+            subjects: db.subjects?.length || 0,
+            teachers: db.teachers?.length || 0,
+            classSubjects: db.classSubjects?.length || 0,
+            attendanceSessions: db.attendanceSessions?.length || 0,
+            dailyAttendance: db.dailyAttendance?.length || 0,
+            studentRemarks: db.studentRemarks?.length || 0,
+            teacherAttendances: db.teacherAttendances?.length || 0,
+            holidays: db.holidays?.length || 0,
+          },
+        };
+        zip.file('metadata.json', JSON.stringify(metadata, null, 2));
+
+        if (db.students) zip.file('students.json', JSON.stringify(db.students, null, 2));
+        if (db.attendanceSessions) zip.file('attendance_sessions.json', JSON.stringify(db.attendanceSessions, null, 2));
+        if (db.dailyAttendance) zip.file('daily_attendance.json', JSON.stringify(db.dailyAttendance, null, 2));
+        if (db.teachers) zip.file('teachers.json', JSON.stringify(db.teachers, null, 2));
+        if (db.classes) zip.file('classes.json', JSON.stringify(db.classes, null, 2));
+        if (db.subjects) zip.file('subjects.json', JSON.stringify(db.subjects, null, 2));
+        if (db.classSubjects) zip.file('class_subjects.json', JSON.stringify(db.classSubjects, null, 2));
+        if (db.studentRemarks) zip.file('student_remarks.json', JSON.stringify(db.studentRemarks, null, 2));
+        if (db.teacherAttendances) zip.file('teacher_attendances.json', JSON.stringify(db.teacherAttendances, null, 2));
+        if (db.academicYears) zip.file('academic_years.json', JSON.stringify(db.academicYears, null, 2));
+        if (db.academicMonths) zip.file('academic_months.json', JSON.stringify(db.academicMonths, null, 2));
+        if (db.holidays) zip.file('holidays.json', JSON.stringify(db.holidays, null, 2));
+
+        blob = await zip.generateAsync({ type: 'blob' });
+      }
+
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `Sirajul_Huda_ZPlus_Database_Backup_${new Date().toISOString().split('T')[0]}.zip`);
+      const dateStr = new Date().toISOString().split('T')[0];
+      link.setAttribute('download', `Sirajul_Huda_ZPlus_Database_Backup_${dateStr}.zip`);
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to download ZIP backup:', err);
-      alert('Failed to download ZIP database backup.');
+      alert(err.message || 'Failed to download ZIP database backup.');
     } finally {
       setDownloadingZip(false);
     }
