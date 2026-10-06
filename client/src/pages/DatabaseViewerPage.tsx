@@ -49,17 +49,42 @@ export const DatabaseViewerPage: React.FC = () => {
   }, [selectedTable]);
 
   const downloadBlobAsFile = (blob: Blob, fileName: string) => {
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    link.setAttribute('download', fileName);
-    document.body.appendChild(link);
-    link.click();
-    setTimeout(() => {
-      if (document.body.contains(link)) document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    }, 200);
+    try {
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      link.setAttribute('download', fileName);
+      link.target = '_self';
+      document.body.appendChild(link);
+      
+      const clickEvent = new MouseEvent('click', {
+        view: window,
+        bubbles: true,
+        cancelable: true,
+      });
+      link.dispatchEvent(clickEvent);
+
+      setTimeout(() => {
+        if (document.body.contains(link)) document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 500);
+    } catch (e) {
+      console.error('Blob URL download failed, using FileReader fallback:', e);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        setTimeout(() => {
+          if (document.body.contains(link)) document.body.removeChild(link);
+        }, 500);
+      };
+      reader.readAsDataURL(blob);
+    }
   };
 
   const handleDownloadBackup = async () => {
@@ -72,7 +97,8 @@ export const DatabaseViewerPage: React.FC = () => {
       downloadBlobAsFile(blob, `Sirajul_Huda_Database_Backup_${dateStr}.json`);
     } catch (err: any) {
       console.error('Failed to download database backup:', err);
-      alert('Failed to download database backup.');
+      const errMsg = err.response?.data?.error || err.message || 'Failed to download database backup.';
+      alert(`Backup Download Error: ${errMsg}`);
     } finally {
       setDownloading(false);
     }
@@ -132,7 +158,8 @@ export const DatabaseViewerPage: React.FC = () => {
       downloadBlobAsFile(zipBlob, `Sirajul_Huda_ZPlus_Database_Backup_${dateStr}.zip`);
     } catch (err: any) {
       console.error('Failed to download ZIP backup:', err);
-      alert(err.message || 'Failed to download ZIP database backup.');
+      const errMsg = err.response?.data?.error || err.message || 'Failed to download ZIP database backup.';
+      alert(`ZIP Download Error: ${errMsg}`);
     } finally {
       setDownloadingZip(false);
     }

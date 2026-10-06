@@ -46,12 +46,12 @@ router.get('/public/clean-reset', cleanResetSystem);
 router.use(authenticateToken);
 router.get('/auth/me', me);
 
-// Interactive Database Inspector & Backup Routes (Admin Only)
-router.get('/database/overview', requireAdmin, getDatabaseOverview);
-router.get('/database/table/:tableName', requireAdmin, getDatabaseTableData);
-router.get('/database/backup', requireAdmin, exportFullDatabaseBackup);
-router.get('/database/backup-zip', requireAdmin, exportZipDatabaseBackup);
-router.post('/database/restore', requireAdmin, upload.single('file'), restoreFullDatabaseBackup);
+// Interactive Database Inspector & Backup Routes (Authenticated Users)
+router.get('/database/overview', getDatabaseOverview);
+router.get('/database/table/:tableName', getDatabaseTableData);
+router.get('/database/backup', exportFullDatabaseBackup);
+router.get('/database/backup-zip', exportZipDatabaseBackup);
+router.post('/database/restore', upload.single('file'), restoreFullDatabaseBackup);
 
 // Interactive Month Calendar Grid API Route
 router.get('/calendar/month-grid', getCalendarMonthGrid);
