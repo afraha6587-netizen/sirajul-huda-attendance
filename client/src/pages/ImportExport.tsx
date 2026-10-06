@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Upload, Download, FileSpreadsheet, CheckCircle2, AlertCircle, Sparkles, FileText, ArrowRight, GraduationCap } from 'lucide-react';
+import { Upload, Download, FileSpreadsheet, CheckCircle2, AlertCircle, Sparkles, FileText, ArrowRight, GraduationCap, BookOpen } from 'lucide-react';
 import api from '../utils/api';
 import { Class } from '../types';
 import { Navbar } from '../components/Navbar';
@@ -11,6 +11,12 @@ export const ImportExport: React.FC = () => {
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<any | null>(null);
   const [error, setError] = useState('');
+
+  // Subject Import States
+  const [subjectFile, setSubjectFile] = useState<File | null>(null);
+  const [importingSubjects, setImportingSubjects] = useState(false);
+  const [subjectResult, setSubjectResult] = useState<any | null>(null);
+  const [subjectError, setSubjectError] = useState('');
 
   useEffect(() => {
     api.get('/classes')
@@ -57,6 +63,38 @@ export const ImportExport: React.FC = () => {
     }
   };
 
+  const handleSubjectFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setSubjectFile(e.target.files[0]);
+      setSubjectResult(null);
+      setSubjectError('');
+    }
+  };
+
+  const handleSubjectUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!subjectFile) return;
+
+    setImportingSubjects(true);
+    setSubjectResult(null);
+    setSubjectError('');
+
+    const formData = new FormData();
+    formData.append('file', subjectFile);
+
+    try {
+      const res = await api.post('/import/subjects', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setSubjectResult(res.data);
+      alert(`Success! ${res.data.successCount || res.data.count || 0} subjects imported into database successfully!`);
+    } catch (err: any) {
+      setSubjectError(err.response?.data?.error || 'Failed to import subjects Excel file.');
+    } finally {
+      setImportingSubjects(false);
+    }
+  };
+
   const handleDownloadSample = () => {
     const csvContent =
       'data:text/csv;charset=utf-8,' +
@@ -73,13 +111,29 @@ export const ImportExport: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  const handleDownloadSubjectSample = () => {
+    const csvContent =
+      'data:text/csv;charset=utf-8,' +
+      'SubjectCode,SubjectName,ArabicName,ClassName,TeacherName\n' +
+      'SUB-TAFSIR,Tafseer Al-Jalalain,تفسير الجلالين,D-3,Usthad Ahmad\n' +
+      'SUB-FIQH,Fath Al-Muin,فتح المعين,D-3,Usthad Hassan\n';
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', 'Sirajul_Huda_Subjects_Import_Template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="flex-1 bg-surface-bg min-h-screen pb-12">
-      <Navbar title="Batch Import / Export Roster" subtitle="Bulk upload students, teachers, and export Excel reports" />
+      <Navbar title="Batch Import / Export Roster" subtitle="Bulk upload students, subjects, and export Excel reports" />
 
       <main className="max-w-7xl mx-auto px-6 pt-6 space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Card 1: Batch Excel Importer */}
+          {/* Card 1: Batch Student Roster Importer */}
           <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-5">
             <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
               <div className="w-12 h-12 rounded-2xl bg-brand-50 border border-brand-200 text-brand-600 flex items-center justify-center font-bold text-xl">
@@ -115,7 +169,7 @@ export const ImportExport: React.FC = () => {
               className="w-full py-2.5 px-4 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center gap-2 transition-colors"
             >
               <Download className="w-4 h-4 text-brand-600" />
-              <span>Download Excel Sample Template (.csv)</span>
+              <span>Download Student Sample Template (.csv)</span>
             </button>
 
             <form onSubmit={handleUpload} className="space-y-4">
@@ -152,13 +206,72 @@ export const ImportExport: React.FC = () => {
                 className="w-full py-3 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
               >
                 <Upload className="w-4 h-4" />
-                <span>{importing ? 'Processing Import...' : 'Execute Batch Upload'}</span>
+                <span>{importing ? 'Processing Import...' : 'Execute Student Roster Upload'}</span>
               </button>
             </form>
           </div>
 
-          {/* Card 2: Export Monthly Reports */}
+          {/* Card 2: Batch Subject Master Importer */}
           <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-5">
+            <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+              <div className="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-200 text-teal-700 flex items-center justify-center font-bold text-xl">
+                📚
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900">Batch Subject Master Import</h3>
+                <p className="text-xs text-slate-500 font-semibold">Upload Excel (.xlsx, .xls, .csv) with subject details</p>
+              </div>
+            </div>
+
+            <button
+              onClick={handleDownloadSubjectSample}
+              className="w-full py-2.5 px-4 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+            >
+              <Download className="w-4 h-4 text-teal-600" />
+              <span>Download Subjects Sample Template (.csv)</span>
+            </button>
+
+            <form onSubmit={handleSubjectUpload} className="space-y-4">
+              <div className="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center hover:border-teal-500 transition-colors bg-slate-50/50">
+                <Upload className="w-8 h-8 mx-auto text-slate-400 mb-2" />
+                <p className="text-xs font-bold text-slate-700">Drag & drop your Subject Excel file here or browse</p>
+                <p className="text-[11px] text-slate-400 mt-1">Accepts headers: SubjectName, ArabicName, SubjectCode, ClassName, TeacherName</p>
+
+                <input
+                  type="file"
+                  accept=".xlsx, .xls, .csv"
+                  onChange={handleSubjectFileChange}
+                  className="mt-4 block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-teal-600 file:text-white hover:file:bg-teal-700 cursor-pointer"
+                />
+              </div>
+
+              {subjectError && (
+                <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{subjectError}</span>
+                </div>
+              )}
+
+              {subjectResult && (
+                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Imported {subjectResult.successCount || subjectResult.count || 0} subjects into database successfully!</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={!subjectFile || importingSubjects}
+                className="w-full py-3 px-4 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+              >
+                <Upload className="w-4 h-4" />
+                <span>{importingSubjects ? 'Processing Subjects...' : 'Execute Subject Master Upload'}</span>
+              </button>
+            </form>
+          </div>
+
+          {/* Card 3: Export Monthly Reports */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-5 lg:col-span-2">
             <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
               <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center font-bold text-xl">
                 📊
@@ -169,14 +282,16 @@ export const ImportExport: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-              <p className="text-xs font-bold text-slate-800">Export Class Monthly Sheet</p>
-              <p className="text-xs text-slate-500">
-                Generates a complete multi-subject Excel matrix including available classes, taken classes, subject percentages, and day-wise leave counts.
-              </p>
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="space-y-1">
+                <p className="text-xs font-bold text-slate-800">Export Class Monthly Sheet</p>
+                <p className="text-xs text-slate-500">
+                  Generates a complete multi-subject Excel matrix including available classes, taken classes, subject percentages, and day-wise leave counts.
+                </p>
+              </div>
               <a
                 href="/monthly-report"
-                className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-2 transition-colors"
+                className="py-2.5 px-5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-2 transition-colors shrink-0"
               >
                 <FileSpreadsheet className="w-4 h-4" />
                 <span>Go to Monthly Report & Export Excel</span>
@@ -188,3 +303,4 @@ export const ImportExport: React.FC = () => {
     </div>
   );
 };
+

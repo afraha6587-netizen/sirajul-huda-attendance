@@ -291,3 +291,124 @@ export const importExcelData = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: error.message || 'Failed to process Excel import' });
   }
 };
+
+// Import Subjects Master & Class Assignments from Excel File
+export const importSubjectsExcel = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Please upload an Excel file (.xlsx / .csv)' });
+    }
+
+    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    const jsonData = XLSX.utils.sheet_to_json<any>(sheet);
+
+    if (!jsonData || jsonData.length === 0) {
+      return res.status(400).json({ error: 'Uploaded file contains no valid data rows' });
+    }
+
+    const importedSubjects: any[] = [];
+    const errors: string[] = [];
+    let successCount = 0;
+
+    for (let index = 0; index < jsonData.length; index++) {
+      const row = jsonData[index];
+
+      let name = getRowValue(row, ['SubjectName', 'Subject Name', 'Name', 'SUBJECT', 'Subject_Name', 'Title', 'Subject']);
+      let arabicName = getRowValue(row, ['ArabicName', 'Arabic Name', 'Arabic', 'Name Arabic', 'Arabic_Name', 'الاسم بالعربية']);
+      let code = getRowValue(row, ['Code', 'SubjectCode', 'Subject Code', 'CODE', 'Code_No', 'Subject_Code']);
+      let className = getRowValue(row, ['ClassName', 'Class Name', 'Class', 'CLASS', 'Class_Name', 'Grade']);
+      let teacherName = getRowValue(row, ['TeacherName', 'Teacher Name', 'Teacher', 'TEACHER', 'Usthad', 'Teacher_Name']);
+
+      if (!name) {
+        errors.push(`Row ${index + 2}: Missing subject name`);
+        continue;
+      }
+
+      if (!arabicName) {
+        arabicName = name;
+      }
+
+      if (!code) {
+        const cleanSlug = name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6);
+        code = `SUB-${cleanSlug || 'GEN'}-${String(index + 101).padStart(3, '0')}`;
+      }
+
+      try {
+        const existingSubject = await prisma.subject.findFirst({
+          where: { OR: [{ code }, { name }] },
+        });
+
+        let subject;
+        if (existingSubject) {
+          subject = await prisma.subject.update({
+            where: { id: existingSubject.id },
+            data: { name, arabicName, active: true },
+          });
+        } else {
+          subject = await prisma.subject.create({
+            data: { code, name, arabicName, active: true },
+          });
+        }
+
+        // Optional: Assign to Class & Teacher if provided in row
+        if (className || teacherName) {
+          let cls = null;
+          if (className) {
+            cls = await prisma.class.findFirst({ where: { name: className } });
+            if (!cls) {
+              let currentYear = await prisma.academicYear.findFirst({ where: { isCurrent: true } });
+              if (!currentYear) {
+                currentYear = await prisma.academicYear.create({
+                  data: { name: '2026-2027', startDate: new Date('2026-06-01'), endDate: new Date('2027-04-30'), isCurrent: true },
+                });
+              }
+              cls = await prisma.class.create({
+                data: { name: className, academicYearId: currentYear.id, active: true },
+              });
+            }
+          }
+
+          let teacher = null;
+          if (teacherName) {
+            teacher = await prisma.teacher.findFirst({
+              where: { OR: [{ name: teacherName }, { code: teacherName }] },
+            });
+            if (!teacher) {
+              const teacherCode = `TCH-${String(index + 100).padStart(3, '0')}`;
+              teacher = await prisma.teacher.create({
+                data: { name: teacherName, code: teacherCode, active: true },
+              });
+            }
+          }
+
+          if (cls && teacher) {
+            await prisma.classSubject.upsert({
+              where: { classId_subjectId: { classId: cls.id, subjectId: subject.id } },
+              update: { teacherId: teacher.id, active: true },
+              create: { classId: cls.id, subjectId: subject.id, teacherId: teacher.id, active: true },
+            });
+          }
+        }
+
+        importedSubjects.push(subject);
+        successCount++;
+      } catch (err: any) {
+        errors.push(`Row ${index + 2}: Error importing subject ${name}: ${err.message}`);
+      }
+    }
+
+    res.json({
+      message: `Import completed. ${successCount} subjects processed into database successfully!`,
+      count: successCount,
+      successCount,
+      errorsCount: errors.length,
+      errors,
+      importedSubjects,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to process subject Excel import' });
+  }
+};
+

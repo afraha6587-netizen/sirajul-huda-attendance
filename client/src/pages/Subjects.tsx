@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Edit2, Trash2, BookOpen } from 'lucide-react';
+import { Plus, Edit2, Trash2, BookOpen, Upload, Download, CheckCircle2, AlertCircle } from 'lucide-react';
 import api from '../utils/api';
 import { Subject } from '../types';
 import { Navbar } from '../components/Navbar';
@@ -17,6 +17,13 @@ export const Subjects: React.FC = () => {
     arabicName: '',
     code: '',
   });
+
+  // Batch Import Modal State
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<any | null>(null);
+  const [importError, setImportError] = useState('');
 
   const fetchSubjects = async () => {
     try {
@@ -77,23 +84,85 @@ export const Subjects: React.FC = () => {
     }
   };
 
+  const handleImportFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setImportFile(e.target.files[0]);
+      setImportResult(null);
+      setImportError('');
+    }
+  };
+
+  const handleImportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!importFile) return;
+
+    setImporting(true);
+    setImportResult(null);
+    setImportError('');
+
+    const formData = new FormData();
+    formData.append('file', importFile);
+
+    try {
+      const res = await api.post('/import/subjects', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setImportResult(res.data);
+      fetchSubjects();
+    } catch (err: any) {
+      setImportError(err.response?.data?.error || 'Failed to import subjects Excel file.');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleDownloadSubjectSample = () => {
+    const csvContent =
+      'data:text/csv;charset=utf-8,' +
+      'SubjectCode,SubjectName,ArabicName,ClassName,TeacherName\n' +
+      'SUB-TAFSIR,Tafseer Al-Jalalain,تفسير الجلالين,D-3,Usthad Ahmad\n' +
+      'SUB-FIQH,Fath Al-Muin,فتح المعين,D-3,Usthad Hassan\n';
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', 'Sirajul_Huda_Subjects_Import_Template.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="flex-1 bg-surface-bg min-h-screen pb-12">
       <Navbar title="Subject Management" subtitle="Manage course subjects and Arabic names" />
 
       <main className="max-w-7xl mx-auto px-6 pt-6 space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Configured Subjects ({subjects.length})</h2>
             <p className="text-xs text-slate-500">Subjects can be assigned to different teachers for different classes</p>
           </div>
-          <button
-            onClick={() => handleOpenModal()}
-            className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add New Subject</span>
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                setImportFile(null);
+                setImportResult(null);
+                setImportError('');
+                setIsImportModalOpen(true);
+              }}
+              className="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-colors"
+            >
+              <Upload className="w-4 h-4" />
+              <span>Import Subjects (Excel)</span>
+            </button>
+            <button
+              onClick={() => handleOpenModal()}
+              className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add New Subject</span>
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -209,6 +278,74 @@ export const Subjects: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      {/* Batch Import Subjects Modal */}
+      <Modal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        title="Batch Import Subjects from Excel"
+      >
+        <form onSubmit={handleImportSubmit} className="space-y-4">
+          <p className="text-xs text-slate-500">
+            Upload an Excel (.xlsx, .xls) or CSV file containing subject master records.
+          </p>
+
+          <button
+            type="button"
+            onClick={handleDownloadSubjectSample}
+            className="w-full py-2 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center gap-2"
+          >
+            <Download className="w-4 h-4 text-teal-600" />
+            <span>Download Subjects Sample Template (.csv)</span>
+          </button>
+
+          <div className="border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center bg-slate-50/50">
+            <Upload className="w-8 h-8 mx-auto text-slate-400 mb-2" />
+            <p className="text-xs font-bold text-slate-700">Select Subject Excel or CSV file</p>
+            <p className="text-[11px] text-slate-400 mt-1">Headers: SubjectName, ArabicName, SubjectCode, ClassName, TeacherName</p>
+
+            <input
+              type="file"
+              accept=".xlsx, .xls, .csv"
+              onChange={handleImportFileChange}
+              className="mt-4 block w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-teal-600 file:text-white hover:file:bg-teal-700 cursor-pointer"
+            />
+          </div>
+
+          {importError && (
+            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>{importError}</span>
+            </div>
+          )}
+
+          {importResult && (
+            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Successfully imported {importResult.successCount || importResult.count || 0} subjects!</span>
+            </div>
+          )}
+
+          <div className="pt-4 flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setIsImportModalOpen(false)}
+              className="px-4 py-2 rounded-xl text-slate-600 text-xs font-bold hover:bg-slate-100"
+            >
+              Close
+            </button>
+            <button
+              type="submit"
+              disabled={!importFile || importing}
+              className="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-md flex items-center gap-2 disabled:opacity-50"
+            >
+              <Upload className="w-4 h-4" />
+              <span>{importing ? 'Importing...' : 'Upload & Import'}</span>
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };
+

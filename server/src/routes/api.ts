@@ -24,7 +24,7 @@ import {
   getSyllabusLog,
 } from '../controllers/attendanceController';
 import { getMonthlyAttendanceReport, getDashboardStats, getStudentsAtRisk } from '../controllers/reportController';
-import { exportMonthlyReportToExcel, importExcelData } from '../controllers/importExportController';
+import { exportMonthlyReportToExcel, importExcelData, importSubjectsExcel } from '../controllers/importExportController';
 import { getPublicStudentAttendance, seedSystem, cleanResetSystem } from '../controllers/publicController';
 import { getUsers, createUser, updateUser, deleteUser, getFailedLoginAttempts } from '../controllers/userController';
 import { getHolidays, createHoliday, deleteHoliday, getCalendarMonthGrid } from '../controllers/holidayController';
@@ -139,5 +139,6 @@ router.get('/reports/at-risk', getStudentsAtRisk);
 // Import & Export Routes
 router.get('/export/excel', exportMonthlyReportToExcel);
 router.post('/import/excel', requireAdmin, upload.single('file'), importExcelData);
+router.post('/import/subjects', requireAdmin, upload.single('file'), importSubjectsExcel);
 
 export default router;
