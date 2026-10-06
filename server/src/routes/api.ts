@@ -28,7 +28,7 @@ import { exportMonthlyReportToExcel, importExcelData } from '../controllers/impo
 import { getPublicStudentAttendance, seedSystem, cleanResetSystem } from '../controllers/publicController';
 import { getUsers, createUser, updateUser, deleteUser, getFailedLoginAttempts } from '../controllers/userController';
 import { getHolidays, createHoliday, deleteHoliday, getCalendarMonthGrid } from '../controllers/holidayController';
-import { getDatabaseOverview, getDatabaseTableData, exportFullDatabaseBackup } from '../controllers/databaseController';
+import { getDatabaseOverview, getDatabaseTableData, exportFullDatabaseBackup, restoreFullDatabaseBackup } from '../controllers/databaseController';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
 
 const router = Router();
@@ -50,6 +50,7 @@ router.get('/auth/me', me);
 router.get('/database/overview', requireAdmin, getDatabaseOverview);
 router.get('/database/table/:tableName', requireAdmin, getDatabaseTableData);
 router.get('/database/backup', requireAdmin, exportFullDatabaseBackup);
+router.post('/database/restore', requireAdmin, upload.single('file'), restoreFullDatabaseBackup);
 
 // Interactive Month Calendar Grid API Route
 router.get('/calendar/month-grid', getCalendarMonthGrid);

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Database, Download, HardDrive, Table, RefreshCw, ShieldCheck, CheckCircle2, Search } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import { Database, Download, HardDrive, Table, RefreshCw, ShieldCheck, CheckCircle2, Search, Upload } from 'lucide-react';
 import api from '../utils/api';
 import { Navbar } from '../components/Navbar';
 
@@ -11,6 +11,8 @@ export const DatabaseViewerPage: React.FC = () => {
   const [loadingTable, setLoadingTable] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [downloading, setDownloading] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchOverview = async () => {
     setLoadingOverview(true);
@@ -63,6 +65,35 @@ export const DatabaseViewerPage: React.FC = () => {
     }
   };
 
+  const handleRestoreBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!window.confirm("Are you sure you want to restore this database backup? Existing records will be safely upserted without data loss.")) {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    setRestoring(true);
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await api.post('/database/restore', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      alert(res.data.message || 'Database backup restored successfully!');
+      fetchOverview();
+      fetchTableData(selectedTable);
+    } catch (err: any) {
+      console.error('Failed to restore backup:', err);
+      alert(err.response?.data?.error || 'Failed to restore database backup.');
+    } finally {
+      setRestoring(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const filteredData = tableData.filter((row) =>
     JSON.stringify(row).toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -96,12 +127,12 @@ export const DatabaseViewerPage: React.FC = () => {
               </div>
               <h2 className="text-xl font-extrabold mt-1">Live Database Inspector</h2>
               <p className="text-xs text-slate-300 mt-1 max-w-xl">
-                All attendance logs, student rosters, classes, and settings are stored in real-time. Download full JSON backups at any time.
+                All attendance logs, student rosters, classes, and settings are stored in real-time. Download full JSON backups at any time or restore from backup with zero data loss.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="flex items-center gap-3 w-full md:w-auto flex-wrap">
             <button
               onClick={fetchOverview}
               className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 flex items-center gap-2"
@@ -116,7 +147,23 @@ export const DatabaseViewerPage: React.FC = () => {
               className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-all disabled:opacity-50"
             >
               <Download className="w-4 h-4" />
-              <span>{downloading ? 'Preparing Backup...' : 'Download Full Backup (.json)'}</span>
+              <span>{downloading ? 'Preparing Backup...' : 'Download Backup (.json)'}</span>
+            </button>
+
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleRestoreBackup}
+              accept=".json"
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={restoring}
+              className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-all disabled:opacity-50"
+            >
+              <Upload className="w-4 h-4" />
+              <span>{restoring ? 'Restoring Backup...' : 'Restore Backup (.json)'}</span>
             </button>
           </div>
         </div>
