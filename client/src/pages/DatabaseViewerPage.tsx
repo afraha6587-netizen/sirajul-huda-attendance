@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Database, Download, HardDrive, Table, RefreshCw, ShieldCheck, CheckCircle2, Search, Upload } from 'lucide-react';
+import { Database, Download, HardDrive, Table, RefreshCw, ShieldCheck, CheckCircle2, Search, Upload, Archive, FileText } from 'lucide-react';
 import api from '../utils/api';
 import { Navbar } from '../components/Navbar';
 
@@ -11,6 +11,7 @@ export const DatabaseViewerPage: React.FC = () => {
   const [loadingTable, setLoadingTable] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [downloading, setDownloading] = useState(false);
+  const [downloadingZip, setDownloadingZip] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -65,6 +66,26 @@ export const DatabaseViewerPage: React.FC = () => {
     }
   };
 
+  const handleDownloadZipBackup = async () => {
+    setDownloadingZip(true);
+    try {
+      const res = await api.get('/database/backup-zip', { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/zip' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Sirajul_Huda_ZPlus_Database_Backup_${new Date().toISOString().split('T')[0]}.zip`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Failed to download ZIP backup:', err);
+      alert('Failed to download ZIP database backup.');
+    } finally {
+      setDownloadingZip(false);
+    }
+  };
+
   const handleRestoreBackup = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -115,7 +136,7 @@ export const DatabaseViewerPage: React.FC = () => {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
         {/* Status Header Banner */}
-        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-3xl p-6 text-white shadow-xl flex flex-col lg:flex-row items-center justify-between gap-6">
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 rounded-2xl bg-brand-600/30 border border-brand-500/40 text-brand-300 flex items-center justify-center font-bold shrink-0">
               <Database className="w-6 h-6" />
@@ -127,12 +148,12 @@ export const DatabaseViewerPage: React.FC = () => {
               </div>
               <h2 className="text-xl font-extrabold mt-1">Live Database Inspector</h2>
               <p className="text-xs text-slate-300 mt-1 max-w-xl">
-                All attendance logs, student rosters, classes, and settings are stored in real-time. Download full JSON backups at any time or restore from backup with zero data loss.
+                All attendance logs, student rosters, classes, and settings are stored in real-time. Download full JSON or ZIP backups at any time with Z+ Security.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto flex-wrap">
+          <div className="flex items-center gap-3 w-full lg:w-auto flex-wrap">
             <button
               onClick={fetchOverview}
               className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 flex items-center gap-2"
@@ -142,19 +163,28 @@ export const DatabaseViewerPage: React.FC = () => {
             </button>
 
             <button
+              onClick={handleDownloadZipBackup}
+              disabled={downloadingZip}
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow-md flex items-center gap-2 transition-all disabled:opacity-50"
+            >
+              <Archive className="w-4 h-4 text-emerald-200" />
+              <span>{downloadingZip ? 'Zipping Data...' : 'Download Z+ ZIP Backup (.zip)'}</span>
+            </button>
+
+            <button
               onClick={handleDownloadBackup}
               disabled={downloading}
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-all disabled:opacity-50"
+              className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-700 flex items-center gap-2 transition-all disabled:opacity-50"
             >
-              <Download className="w-4 h-4" />
-              <span>{downloading ? 'Preparing Backup...' : 'Download Backup (.json)'}</span>
+              <FileText className="w-4 h-4" />
+              <span>{downloading ? 'Preparing...' : 'JSON Backup (.json)'}</span>
             </button>
 
             <input
               type="file"
               ref={fileInputRef}
               onChange={handleRestoreBackup}
-              accept=".json"
+              accept=".json,.zip"
               className="hidden"
             />
             <button
@@ -163,8 +193,26 @@ export const DatabaseViewerPage: React.FC = () => {
               className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-all disabled:opacity-50"
             >
               <Upload className="w-4 h-4" />
-              <span>{restoring ? 'Restoring Backup...' : 'Restore Backup (.json)'}</span>
+              <span>{restoring ? 'Restoring Backup...' : 'Restore Backup (.json / .zip)'}</span>
             </button>
+          </div>
+        </div>
+
+        {/* Z+ Security Protection Info Banner */}
+        <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-3xl p-5 text-emerald-100 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 text-emerald-400 flex items-center justify-center font-bold shrink-0">
+              <Archive className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                <span>Z+ Security Double Backup Protection Active</span>
+                <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border border-emerald-500/40">Z+ Safe</span>
+              </h4>
+              <p className="text-xs text-emerald-200/80 mt-0.5">
+                Download as a multi-file <strong>ZIP Archive</strong> (includes separate JSON files for students, sessions, remarks, teachers, etc.) or as a single <strong>JSON backup</strong>. Restore either format anytime with 0 data loss.
+              </p>
+            </div>
           </div>
         </div>
 

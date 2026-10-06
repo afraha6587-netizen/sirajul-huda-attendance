@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import AdmZip from 'adm-zip';
 import { prisma } from '../utils/prisma';
 import { AuthRequest } from '../middleware/auth';
 
@@ -170,13 +171,159 @@ export const exportFullDatabaseBackup = async (_req: AuthRequest, res: Response)
   }
 };
 
+export const exportZipDatabaseBackup = async (_req: AuthRequest, res: Response) => {
+  try {
+    const [
+      students,
+      classes,
+      subjects,
+      teachers,
+      classSubjects,
+      sessions,
+      daily,
+      holidays,
+      years,
+      months,
+      settings,
+      studentRemarks,
+      teacherAttendances,
+    ] = await Promise.all([
+      prisma.student.findMany(),
+      prisma.class.findMany(),
+      prisma.subject.findMany(),
+      prisma.teacher.findMany(),
+      prisma.classSubject.findMany(),
+      prisma.attendanceSession.findMany({ include: { records: true } }),
+      prisma.dailyAttendance.findMany(),
+      prisma.institutionHoliday.findMany(),
+      prisma.academicYear.findMany(),
+      prisma.academicMonth.findMany(),
+      prisma.systemSettings.findFirst(),
+      prisma.studentRemark.findMany(),
+      prisma.teacherAttendance.findMany(),
+    ]);
+
+    const backupData = {
+      institution: 'Sirajul Huda College of Science and Integrated Studies, Nadapuram',
+      exportTimestamp: new Date().toISOString(),
+      version: '2.0',
+      securityLevel: 'Z+ Multi-Layer Secure Backup (ZIP Archive)',
+      database: {
+        settings,
+        academicYears: years,
+        academicMonths: months,
+        classes,
+        subjects,
+        teachers,
+        classSubjects,
+        students,
+        attendanceSessions: sessions,
+        dailyAttendance: daily,
+        holidays,
+        studentRemarks,
+        teacherAttendances,
+      },
+    };
+
+    const zip = new AdmZip();
+
+    // 1. Unified Full Backup JSON
+    zip.addFile('full_database_backup.json', Buffer.from(JSON.stringify(backupData, null, 2), 'utf8'));
+
+    // 2. Metadata JSON
+    const metadata = {
+      institution: backupData.institution,
+      exportTimestamp: backupData.exportTimestamp,
+      version: backupData.version,
+      securityLevel: backupData.securityLevel,
+      counts: {
+        students: students.length,
+        classes: classes.length,
+        subjects: subjects.length,
+        teachers: teachers.length,
+        classSubjects: classSubjects.length,
+        attendanceSessions: sessions.length,
+        dailyAttendance: daily.length,
+        studentRemarks: studentRemarks.length,
+        teacherAttendances: teacherAttendances.length,
+        holidays: holidays.length,
+      },
+    };
+    zip.addFile('metadata.json', Buffer.from(JSON.stringify(metadata, null, 2), 'utf8'));
+
+    // 3. Individual Table Files inside the ZIP for maximum transparency
+    zip.addFile('students.json', Buffer.from(JSON.stringify(students, null, 2), 'utf8'));
+    zip.addFile('attendance_sessions.json', Buffer.from(JSON.stringify(sessions, null, 2), 'utf8'));
+    zip.addFile('daily_attendance.json', Buffer.from(JSON.stringify(daily, null, 2), 'utf8'));
+    zip.addFile('teachers.json', Buffer.from(JSON.stringify(teachers, null, 2), 'utf8'));
+    zip.addFile('classes.json', Buffer.from(JSON.stringify(classes, null, 2), 'utf8'));
+    zip.addFile('subjects.json', Buffer.from(JSON.stringify(subjects, null, 2), 'utf8'));
+    zip.addFile('class_subjects.json', Buffer.from(JSON.stringify(classSubjects, null, 2), 'utf8'));
+    zip.addFile('student_remarks.json', Buffer.from(JSON.stringify(studentRemarks, null, 2), 'utf8'));
+    zip.addFile('teacher_attendances.json', Buffer.from(JSON.stringify(teacherAttendances, null, 2), 'utf8'));
+    zip.addFile('academic_years.json', Buffer.from(JSON.stringify(years, null, 2), 'utf8'));
+    zip.addFile('academic_months.json', Buffer.from(JSON.stringify(months, null, 2), 'utf8'));
+    zip.addFile('holidays.json', Buffer.from(JSON.stringify(holidays, null, 2), 'utf8'));
+
+    const zipBuffer = zip.toBuffer();
+
+    const dateStr = new Date().toISOString().split('T')[0];
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=Sirajul_Huda_ZPlus_Database_Backup_${dateStr}.zip`
+    );
+    res.send(zipBuffer);
+  } catch (error: any) {
+    console.error('ZIP backup creation error:', error);
+    res.status(500).json({ error: error.message || 'Failed to generate ZIP database backup' });
+  }
+};
+
 export const restoreFullDatabaseBackup = async (req: AuthRequest, res: Response) => {
   try {
     let backupObj: any = null;
 
     if (req.file) {
-      const fileContent = req.file.buffer.toString('utf8');
-      backupObj = JSON.parse(fileContent);
+      const fileName = (req.file.originalname || '').toLowerCase();
+      if (fileName.endsWith('.zip') || req.file.mimetype.includes('zip') || req.file.mimetype.includes('compressed')) {
+        try {
+          const zip = new AdmZip(req.file.buffer);
+          const entries = zip.getEntries();
+          const mainEntry = entries.find((e) => e.entryName === 'full_database_backup.json');
+
+          if (mainEntry) {
+            const content = mainEntry.getData().toString('utf8');
+            backupObj = JSON.parse(content);
+          } else {
+            const db: any = {};
+            for (const entry of entries) {
+              if (entry.entryName.endsWith('.json') && !entry.isDirectory) {
+                const content = entry.getData().toString('utf8');
+                const json = JSON.parse(content);
+                if (entry.entryName === 'students.json') db.students = json;
+                else if (entry.entryName === 'attendance_sessions.json') db.attendanceSessions = json;
+                else if (entry.entryName === 'daily_attendance.json') db.dailyAttendance = json;
+                else if (entry.entryName === 'teachers.json') db.teachers = json;
+                else if (entry.entryName === 'classes.json') db.classes = json;
+                else if (entry.entryName === 'subjects.json') db.subjects = json;
+                else if (entry.entryName === 'class_subjects.json') db.classSubjects = json;
+                else if (entry.entryName === 'student_remarks.json') db.studentRemarks = json;
+                else if (entry.entryName === 'teacher_attendances.json') db.teacherAttendances = json;
+                else if (entry.entryName === 'academic_years.json') db.academicYears = json;
+                else if (entry.entryName === 'academic_months.json') db.academicMonths = json;
+                else if (entry.entryName === 'holidays.json') db.holidays = json;
+              }
+            }
+            backupObj = { database: db };
+          }
+        } catch (zipErr: any) {
+          return res.status(400).json({ error: `Failed to extract ZIP archive backup: ${zipErr.message}` });
+        }
+      } else {
+        const fileContent = req.file.buffer.toString('utf8');
+        backupObj = JSON.parse(fileContent);
+      }
     } else if (req.body.backupData) {
       backupObj = typeof req.body.backupData === 'string' ? JSON.parse(req.body.backupData) : req.body.backupData;
     } else {
