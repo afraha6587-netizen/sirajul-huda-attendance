@@ -189,10 +189,22 @@ export const MonthlyReport: React.FC = () => {
               </div>
 
               {/* Quick Performance Summary Pills */}
-              <div className="no-print grid grid-cols-2 gap-3 shrink-0">
+              <div className="no-print grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
                 <div className="bg-slate-800/80 rounded-xl p-3 border border-slate-700/60 text-center">
                   <span className="text-[10px] text-slate-400 font-bold uppercase block">Enrolled Students</span>
                   <span className="text-lg font-black text-white">{reportData.students.length}</span>
+                </div>
+                <div className="bg-indigo-950/60 rounded-xl p-3 border border-indigo-800/60 text-center">
+                  <span className="text-[10px] text-indigo-400 font-bold uppercase block">Avg Session-Wise %</span>
+                  <span className="text-lg font-black text-indigo-300">
+                    {reportData.avgSessionPercentage ?? 0}%
+                  </span>
+                </div>
+                <div className="bg-emerald-950/60 rounded-xl p-3 border border-emerald-800/60 text-center">
+                  <span className="text-[10px] text-emerald-400 font-bold uppercase block">Avg Day-Wise %</span>
+                  <span className="text-lg font-black text-emerald-300">
+                    {reportData.avgDayWisePercentage ?? 0}%
+                  </span>
                 </div>
                 <div className="bg-amber-950/60 rounded-xl p-3 border border-amber-800/60 text-center">
                   <span className="text-[10px] text-amber-400 font-bold uppercase block">Low Attendance</span>
@@ -232,14 +244,14 @@ export const MonthlyReport: React.FC = () => {
                       </th>
                     ))}
 
-                    {/* Grand Total Column Header */}
+                    {/* Session-Wise Total Column Header */}
                     <th className="border border-slate-700 px-3 py-2 bg-emerald-900 text-emerald-100" colSpan={2}>
-                      GRAND TOTAL
+                      SESSION-WISE TOTAL (PERIODS)
                     </th>
 
                     {/* Day Wise Column Header */}
                     <th className="border border-slate-700 px-3 py-2 bg-brand-900 text-brand-100" colSpan={2}>
-                      DAY WISE
+                      DAY-WISE TOTAL (DAILY)
                     </th>
                   </tr>
 
@@ -302,18 +314,18 @@ export const MonthlyReport: React.FC = () => {
                         </React.Fragment>
                       ))}
 
-                      {/* Grand Total Cells */}
+                      {/* Session-Wise Total Cells */}
                       <td className="border border-slate-200 px-3 py-2.5 font-black bg-emerald-50/60 text-emerald-950">
-                        {st.grandTotalAttended}
+                        {st.sessionWiseAttended ?? st.grandTotalAttended}
                       </td>
                       <td
                         className={`border border-slate-200 px-3 py-2.5 font-black text-sm ${
-                          st.overallPercentage < reportData.threshold
+                          (st.sessionWisePercentage ?? st.overallPercentage) < reportData.threshold
                             ? 'text-rose-700 bg-rose-100/90'
                             : 'text-emerald-900 bg-emerald-100/70'
                         }`}
                       >
-                        {st.overallPercentage}%
+                        {st.sessionWisePercentage ?? st.overallPercentage}%
                       </td>
 
                       {/* Day Wise Attendance Cells */}

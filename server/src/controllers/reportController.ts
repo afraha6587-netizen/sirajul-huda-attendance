@@ -164,13 +164,13 @@ export const getMonthlyAttendanceReport = async (req: AuthRequest, res: Response
           })
         );
 
-        // Overall Percentage (protecting student LEAVE)
-        const netGrandTotalTaken = Math.max(0, grandTotalTaken - totalStudentSubjectLeaves);
-        const overallPercentage = netGrandTotalTaken > 0
-          ? Number(((grandTotalAttended / netGrandTotalTaken) * 100).toFixed(2))
+        // 1. SESSION-WISE (SUBJECT/PERIOD) ATTENDANCE TOTAL (Calculated purely from session records)
+        const sessionWiseNetTaken = Math.max(0, grandTotalTaken - totalStudentSubjectLeaves);
+        const sessionWisePercentage = sessionWiseNetTaken > 0
+          ? Number(((grandTotalAttended / sessionWiseNetTaken) * 100).toFixed(2))
           : 0;
 
-        // Day-wise Attendance & Daily LEAVE
+        // 2. DAY-WISE ATTENDANCE TOTAL (Calculated purely from daily attendance records)
         const [presentDaysCount, studentDailyLeaveCount] = await Promise.all([
           prisma.dailyAttendance.count({
             where: {
@@ -191,11 +191,11 @@ export const getMonthlyAttendanceReport = async (req: AuthRequest, res: Response
         ]);
 
         // Net working days reduced by teacher absence & student official LEAVE
-        const netWorkingDays = Math.max(1, totalWorkingDays - distinctTeacherAbsenceDates - studentDailyLeaveCount);
+        const dayWiseNetWorkingDays = Math.max(1, totalWorkingDays - distinctTeacherAbsenceDates - studentDailyLeaveCount);
         const monthlyLeave = Math.max(0, totalWorkingDays - presentDaysCount);
-        const dayWisePercentage = Number(((presentDaysCount / netWorkingDays) * 100).toFixed(2));
+        const dayWisePercentage = Number(((presentDaysCount / dayWiseNetWorkingDays) * 100).toFixed(2));
 
-        const isAtRisk = overallPercentage < threshold || dayWisePercentage < threshold;
+        const isAtRisk = sessionWisePercentage < threshold || dayWisePercentage < threshold;
 
         return {
           slNo: sIdx + 1,
@@ -204,20 +204,37 @@ export const getMonthlyAttendanceReport = async (req: AuthRequest, res: Response
           rollNumber: student.rollNumber,
           studentName: student.name,
           subjectStats,
+          // Session-wise metrics (Period / Subject Total)
           grandTotalAttended,
           grandTotalTaken,
-          overallPercentage,
+          sessionWiseAttended: grandTotalAttended,
+          sessionWiseTaken: grandTotalTaken,
+          sessionWiseLeave: totalStudentSubjectLeaves,
+          sessionWiseNetTaken,
+          sessionWisePercentage,
+          overallPercentage: sessionWisePercentage, // Backward compatible alias
+
+          // Day-wise metrics (Daily Roll-call Total)
           workingDays: totalWorkingDays,
-          netWorkingDays,
+          netWorkingDays: dayWiseNetWorkingDays,
           presentDays: presentDaysCount,
           studentDailyLeave: studentDailyLeaveCount,
           teacherAbsenceDays: distinctTeacherAbsenceDates,
           monthlyLeave,
+          dayWiseWorkingDays: totalWorkingDays,
+          dayWisePresentDays: presentDaysCount,
+          dayWiseLeaveDays: studentDailyLeaveCount,
+          dayWiseNetWorkingDays,
           dayWisePercentage,
           isAtRisk,
         };
       })
     );
+
+    const totalSessionPct = studentRows.reduce((sum, s) => sum + s.sessionWisePercentage, 0);
+    const totalDayWisePct = studentRows.reduce((sum, s) => sum + s.dayWisePercentage, 0);
+    const avgSessionPercentage = studentRows.length > 0 ? Number((totalSessionPct / studentRows.length).toFixed(2)) : 0;
+    const avgDayWisePercentage = studentRows.length > 0 ? Number((totalDayWisePct / studentRows.length).toFixed(2)) : 0;
 
     res.json({
       className: cls.name,
@@ -226,6 +243,8 @@ export const getMonthlyAttendanceReport = async (req: AuthRequest, res: Response
       year: month.year,
       workingDays: totalWorkingDays,
       threshold,
+      avgSessionPercentage,
+      avgDayWisePercentage,
       subjectSummaries,
       students: studentRows,
     });

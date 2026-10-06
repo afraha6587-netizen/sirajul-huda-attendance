@@ -133,9 +133,18 @@ export interface StudentMonthlyReport {
   grandTotalAttended: number;
   grandTotalTaken: number;
   overallPercentage: number;
+  sessionWiseAttended?: number;
+  sessionWiseTaken?: number;
+  sessionWiseLeave?: number;
+  sessionWiseNetTaken?: number;
+  sessionWisePercentage?: number;
+  workingDays: number;
+  netWorkingDays?: number;
   presentDays: number;
   monthlyLeave: number;
   dayWisePercentage: number;
+  studentDailyLeave?: number;
+  teacherAbsenceDays?: number;
   isAtRisk: boolean;
 }
 
@@ -148,6 +157,8 @@ export interface MonthlyReportData {
   academicYearName: string;
   workingDays: number;
   threshold: number;
+  avgSessionPercentage?: number;
+  avgDayWisePercentage?: number;
   subjectSummaries: {
     slNo: number;
     classSubjectId: string;

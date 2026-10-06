@@ -87,6 +87,15 @@ export const exportMonthlyReportToExcel = async (req: AuthRequest, res: Response
 
     const grandTotalTaken = subjectSummaries.reduce((sum, s) => sum + s.takenClasses, 0);
 
+    // Fetch Teacher Absences for this class & month
+    const teacherAbsences = await prisma.teacherAttendance.findMany({
+      where: {
+        date: { gte: startStr, lte: endStr },
+        OR: [{ classId: cls.id }, { classId: null }],
+      },
+    });
+    const distinctTeacherAbsenceDates = new Set(teacherAbsences.map((t) => t.date)).size;
+
     const excelRows: any[][] = [];
     excelRows.push([`${settings?.collegeName || 'Sirajul Huda College'} - CLASS ${cls.name} ATTENDANCE REPORT (${month.monthName.toUpperCase()} ${month.year})`]);
     excelRows.push([]);
@@ -95,35 +104,75 @@ export const exportMonthlyReportToExcel = async (req: AuthRequest, res: Response
     for (const sub of subjectSummaries) {
       mainHeaders.push(sub.subjectName, '%');
     }
-    mainHeaders.push('GRAND TOTAL ATTENDED', 'OVERALL %', 'WORKING DAYS', 'PRESENT DAYS', 'MONTHLY LEAVE', 'DAY WISE %');
+    mainHeaders.push(
+      'SESSION ATTENDED (PERIODS)',
+      'SESSION WISE %',
+      'WORKING DAYS',
+      'PRESENT DAYS',
+      'STUDENT LEAVES',
+      'NET WORKING DAYS',
+      'DAY WISE %'
+    );
     excelRows.push(mainHeaders);
 
     for (let i = 0; i < students.length; i++) {
       const student = students[i];
       let grandTotalAttended = 0;
+      let totalStudentSubjectLeaves = 0;
       const row: any[] = [i + 1, student.registerNumber, student.name];
 
       for (const sub of subjectSummaries) {
-        const attendedCount = await prisma.attendanceRecord.count({
-          where: {
-            studentId: student.id,
-            status: 'PRESENT',
-            session: { classSubjectId: sub.classSubjectId, date: { gte: startStr, lte: endStr } },
-          },
-        });
+        const [attendedCount, leaveCount] = await Promise.all([
+          prisma.attendanceRecord.count({
+            where: {
+              studentId: student.id,
+              status: 'PRESENT',
+              session: { classSubjectId: sub.classSubjectId, date: { gte: startStr, lte: endStr } },
+            },
+          }),
+          prisma.attendanceRecord.count({
+            where: {
+              studentId: student.id,
+              status: 'LEAVE',
+              session: { classSubjectId: sub.classSubjectId, date: { gte: startStr, lte: endStr } },
+            },
+          }),
+        ]);
+
         grandTotalAttended += attendedCount;
-        const pct = sub.takenClasses > 0 ? `${((attendedCount / sub.takenClasses) * 100).toFixed(2)}%` : '0%';
+        totalStudentSubjectLeaves += leaveCount;
+
+        const netTaken = Math.max(0, sub.takenClasses - leaveCount);
+        const pct = netTaken > 0 ? `${((attendedCount / netTaken) * 100).toFixed(2)}%` : '0%';
         row.push(attendedCount, pct);
       }
 
-      const overallPct = grandTotalTaken > 0 ? `${((grandTotalAttended / grandTotalTaken) * 100).toFixed(2)}%` : '0%';
-      const presentDays = await prisma.dailyAttendance.count({
-        where: { studentId: student.id, classId: cls.id, status: 'PRESENT', date: { gte: startStr, lte: endStr } },
-      });
-      const leave = Math.max(0, month.workingDays - presentDays);
-      const dayWisePct = month.workingDays > 0 ? `${((presentDays / month.workingDays) * 100).toFixed(2)}%` : '0%';
+      // 1. SESSION-WISE ATTENDANCE TOTAL (Period / Subject Total)
+      const netGrandTotalTaken = Math.max(0, grandTotalTaken - totalStudentSubjectLeaves);
+      const sessionWisePct = netGrandTotalTaken > 0 ? `${((grandTotalAttended / netGrandTotalTaken) * 100).toFixed(2)}%` : '0%';
 
-      row.push(grandTotalAttended, overallPct, month.workingDays, presentDays, leave, dayWisePct);
+      // 2. DAY-WISE ATTENDANCE TOTAL (Daily Roll-call Total)
+      const [presentDays, studentDailyLeave] = await Promise.all([
+        prisma.dailyAttendance.count({
+          where: { studentId: student.id, classId: cls.id, status: 'PRESENT', date: { gte: startStr, lte: endStr } },
+        }),
+        prisma.dailyAttendance.count({
+          where: { studentId: student.id, classId: cls.id, status: 'LEAVE', date: { gte: startStr, lte: endStr } },
+        }),
+      ]);
+
+      const netWorkingDays = Math.max(1, month.workingDays - distinctTeacherAbsenceDates - studentDailyLeave);
+      const dayWisePct = `${((presentDays / netWorkingDays) * 100).toFixed(2)}%`;
+
+      row.push(
+        grandTotalAttended,
+        sessionWisePct,
+        month.workingDays,
+        presentDays,
+        studentDailyLeave,
+        netWorkingDays,
+        dayWisePct
+      );
       excelRows.push(row);
     }
 
