@@ -26,7 +26,7 @@ import {
 import { getMonthlyAttendanceReport, getDashboardStats, getStudentsAtRisk } from '../controllers/reportController';
 import { exportMonthlyReportToExcel, importExcelData } from '../controllers/importExportController';
 import { getPublicStudentAttendance, seedSystem, cleanResetSystem } from '../controllers/publicController';
-import { getUsers, createUser, updateUser, deleteUser } from '../controllers/userController';
+import { getUsers, createUser, updateUser, deleteUser, getFailedLoginAttempts } from '../controllers/userController';
 import { getHolidays, createHoliday, deleteHoliday, getCalendarMonthGrid } from '../controllers/holidayController';
 import { getDatabaseOverview, getDatabaseTableData, exportFullDatabaseBackup } from '../controllers/databaseController';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
@@ -59,8 +59,9 @@ router.get('/holidays', getHolidays);
 router.post('/holidays', requireAdmin, createHoliday);
 router.delete('/holidays/:id', requireAdmin, deleteHoliday);
 
-// User Management (Admin Only)
+// User Management & Failed Login Attempt Tracking (Admin Only)
 router.get('/users', requireAdmin, getUsers);
+router.get('/users/failed-logins', requireAdmin, getFailedLoginAttempts);
 router.post('/users', requireAdmin, createUser);
 router.put('/users/:id', requireAdmin, updateUser);
 router.delete('/users/:id', requireAdmin, deleteUser);

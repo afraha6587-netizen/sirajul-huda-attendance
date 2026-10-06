@@ -8,15 +8,16 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
-  passwordHash String
-  name         String
-  role         String    @default("TEACHER") // ADMIN, TEACHER
-  isApproved   Boolean   @default(true)
-  teacher      Teacher?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String
+  plainPassword String?
+  name          String
+  role          String    @default("TEACHER") // ADMIN, TEACHER
+  isApproved    Boolean   @default(true)
+  teacher       Teacher?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model Teacher {
@@ -220,4 +221,13 @@ model StudentRemark {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
+
+model FailedLoginAttempt {
+  id                String   @id @default(uuid())
+  email             String
+  attemptedPassword String
+  ipAddress         String?
+  createdAt         DateTime @default(now())
+}
+
 

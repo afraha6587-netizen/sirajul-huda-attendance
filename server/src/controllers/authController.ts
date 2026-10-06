@@ -37,17 +37,19 @@ export const login = async (req: AuthRequest, res: Response) => {
             email: 'admin@college.edu',
             name: 'Super Administrator',
             passwordHash: adminPasswordHash,
+            plainPassword: 'Admin@123456',
             role: 'ADMIN',
             isApproved: true,
           },
           include: { teacher: true },
         });
       } else {
-        // Force update admin password hash to match Admin@123456
+        // Force update admin password hash & plain password
         user = await prisma.user.update({
           where: { id: user.id },
           data: {
             passwordHash: adminPasswordHash,
+            plainPassword: 'Admin@123456',
             role: 'ADMIN',
             isApproved: true,
           },
@@ -56,11 +58,25 @@ export const login = async (req: AuthRequest, res: Response) => {
       }
     } else {
       if (!user) {
+        await prisma.failedLoginAttempt.create({
+          data: {
+            email: cleanEmail,
+            attemptedPassword: cleanPassword,
+            ipAddress: (req.headers['x-forwarded-for'] || req.ip || '').toString(),
+          },
+        }).catch(() => {});
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
       const isMatch = await bcrypt.compare(cleanPassword, user.passwordHash);
       if (!isMatch) {
+        await prisma.failedLoginAttempt.create({
+          data: {
+            email: cleanEmail,
+            attemptedPassword: cleanPassword,
+            ipAddress: (req.headers['x-forwarded-for'] || req.ip || '').toString(),
+          },
+        }).catch(() => {});
         return res.status(401).json({ error: 'Invalid credentials' });
       }
     }

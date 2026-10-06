@@ -1,4 +1,4 @@
-const CACHE_NAME = 'shc-attendance-v8';
+const CACHE_NAME = 'shc-attendance-v9';
 const ASSETS_TO_CACHE = [
   '/',
   '/manifest.json',

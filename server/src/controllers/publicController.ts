@@ -46,9 +46,9 @@ export const getPublicStudentAttendance = async (req: Request, res: Response) =>
     let student = await prisma.student.findFirst({
       where: {
         OR: [
-          { registerNumber: { equals: queryTerm } },
-          { registerNumber: { contains: queryTerm } },
-          { name: { contains: queryTerm } },
+          { registerNumber: { equals: queryTerm, mode: 'insensitive' } },
+          { registerNumber: { contains: queryTerm, mode: 'insensitive' } },
+          { name: { contains: queryTerm, mode: 'insensitive' } },
           ...(isNaN(Number(queryTerm)) ? [] : [{ rollNumber: Number(queryTerm) }]),
         ],
         active: true,

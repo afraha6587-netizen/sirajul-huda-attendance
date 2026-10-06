@@ -6,9 +6,11 @@ import { Navbar } from '../components/Navbar';
 import { Modal } from '../components/Modal';
 
 export const UsersPage: React.FC = () => {
-  const [users, setUsers] = useState<UserType[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [failedLogins, setFailedLogins] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
+  const [showModalPassword, setShowModalPassword] = useState(false);
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -22,8 +24,12 @@ export const UsersPage: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      const res = await api.get('/users');
-      setUsers(res.data);
+      const [uRes, fRes] = await Promise.all([
+        api.get('/users'),
+        api.get('/users/failed-logins').catch(() => ({ data: [] })),
+      ]);
+      setUsers(uRes.data);
+      setFailedLogins(fRes.data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -150,55 +156,124 @@ export const UsersPage: React.FC = () => {
               ))}
             </div>
 
-            {/* Desktop Table View (Visible on laptops/PCs hidden md:block) */}
+            {/* Desktop Table View */}
             <div className="hidden md:block bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-100">
                   <tr>
                     <th className="px-6 py-3.5">Name</th>
                     <th className="px-6 py-3.5">Email / User ID</th>
+                    <th className="px-6 py-3.5">Password</th>
                     <th className="px-6 py-3.5">Role</th>
                     <th className="px-6 py-3.5 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                  {users.map((usr) => (
-                    <tr key={usr.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="px-6 py-4 font-bold text-slate-900">{usr.name}</td>
-                      <td className="px-6 py-4 font-semibold text-brand-700">{usr.email}</td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
-                            usr.role === 'ADMIN'
-                              ? 'bg-purple-100 text-purple-800 border border-purple-200'
-                              : 'bg-teal-100 text-teal-800 border border-teal-200'
-                          }`}
-                        >
-                          {usr.role}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleOpenModal(usr)}
-                            className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1.5 border border-slate-200"
+                  {users.map((usr) => {
+                    const isVisible = showPasswords[usr.id];
+                    const displayPass = usr.plainPassword || (usr.role === 'ADMIN' ? 'Admin@123456' : '••••••••');
+
+                    return (
+                      <tr key={usr.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="px-6 py-4 font-bold text-slate-900">{usr.name}</td>
+                        <td className="px-6 py-4 font-semibold text-brand-700">{usr.email}</td>
+                        <td className="px-6 py-4 font-mono text-slate-800">
+                          <div className="flex items-center gap-2">
+                            <span>{isVisible ? displayPass : '••••••••'}</span>
+                            <button
+                              type="button"
+                              onClick={() => setShowPasswords({ ...showPasswords, [usr.id]: !isVisible })}
+                              className="text-slate-400 hover:text-slate-700"
+                              title="Toggle password view"
+                            >
+                              {isVisible ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
+                              usr.role === 'ADMIN'
+                                ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                                : 'bg-teal-100 text-teal-800 border border-teal-200'
+                            }`}
                           >
-                            <Edit2 className="w-3.5 h-3.5 text-brand-600" />
-                            <span>Edit</span>
-                          </button>
-                          <button
-                            onClick={() => handleDelete(usr.id)}
-                            className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold flex items-center gap-1.5 border border-rose-200"
-                          >
-                            <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                            <span>Delete</span>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                            {usr.role}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleOpenModal(usr)}
+                              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold flex items-center gap-1.5 border border-slate-200"
+                            >
+                              <Edit2 className="w-3.5 h-3.5 text-brand-600" />
+                              <span>Edit</span>
+                            </button>
+                            <button
+                              onClick={() => handleDelete(usr.id)}
+                              className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold flex items-center gap-1.5 border border-rose-200"
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
+            </div>
+
+            {/* Failed Force-Login Attempt Inspector (Shows passwords used during invalid login attempts) */}
+            <div className="bg-white rounded-2xl p-6 border border-rose-200 shadow-xs space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-rose-600" />
+                    <span>Failed & Force-Login Attempts Log ({failedLogins.length})</span>
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Displays passwords typed during failed or force login attempts (e.g. 3+ attempts)
+                  </p>
+                </div>
+              </div>
+
+              {failedLogins.length > 0 ? (
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-rose-50 text-rose-900 font-bold uppercase text-[10px]">
+                      <tr>
+                        <th className="px-4 py-3">Timestamp</th>
+                        <th className="px-4 py-3">Attempted Email / ID</th>
+                        <th className="px-4 py-3">Attempted Password Typed</th>
+                        <th className="px-4 py-3">IP Address</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium">
+                      {failedLogins.map((fl) => (
+                        <tr key={fl.id} className="hover:bg-slate-50">
+                          <td className="px-4 py-3 text-slate-500 font-semibold">
+                            {new Date(fl.createdAt).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 font-bold text-rose-700">{fl.email}</td>
+                          <td className="px-4 py-3 font-mono font-bold text-slate-900 bg-rose-50/50">
+                            {fl.attemptedPassword}
+                          </td>
+                          <td className="px-4 py-3 text-slate-400 font-mono text-[11px]">
+                            {fl.ipAddress || 'Unknown'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="p-6 text-center text-slate-400 text-xs font-semibold bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  No failed login or force-login attempts recorded yet.
+                </div>
+              )}
             </div>
           </>
         )}
@@ -245,7 +320,7 @@ export const UsersPage: React.FC = () => {
             </label>
             <div className="relative">
               <input
-                type={showPassword ? 'text' : 'password'}
+                type={showModalPassword ? 'text' : 'password'}
                 required={!editingUser}
                 placeholder="••••••••"
                 value={formData.password}
@@ -254,11 +329,11 @@ export const UsersPage: React.FC = () => {
               />
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
+                onClick={() => setShowModalPassword(!showModalPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none p-1"
-                title={showPassword ? 'Hide password' : 'Show password'}
+                title={showModalPassword ? 'Hide password' : 'Show password'}
               >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showModalPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
           </div>

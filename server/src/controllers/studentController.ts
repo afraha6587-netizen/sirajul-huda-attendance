@@ -7,11 +7,13 @@ export const getStudents = async (req: Request, res: Response) => {
     const where: any = { active: true };
 
     if (classId) where.classId = String(classId);
-    if (search) {
+    if (search && String(search).trim() !== '') {
+      const q = String(search).trim();
       where.OR = [
-        { name: { contains: String(search) } },
-        { registerNumber: { contains: String(search) } },
-        { admissionNo: { contains: String(search) } },
+        { name: { contains: q, mode: 'insensitive' } },
+        { registerNumber: { contains: q, mode: 'insensitive' } },
+        { admissionNo: { contains: q, mode: 'insensitive' } },
+        ...(isNaN(Number(q)) ? [] : [{ rollNumber: Number(q) }]),
       ];
     }
 

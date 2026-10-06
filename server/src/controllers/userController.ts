@@ -11,6 +11,7 @@ export const getUsers = async (_req: AuthRequest, res: Response) => {
         email: true,
         name: true,
         role: true,
+        plainPassword: true,
         createdAt: true,
         teacher: { select: { id: true, name: true, code: true } },
       },
@@ -55,6 +56,7 @@ export const createUser = async (req: AuthRequest, res: Response) => {
         name,
         email,
         passwordHash,
+        plainPassword: password,
         role: targetRole,
       },
       select: {
@@ -62,6 +64,7 @@ export const createUser = async (req: AuthRequest, res: Response) => {
         email: true,
         name: true,
         role: true,
+        plainPassword: true,
         createdAt: true,
       },
     });
@@ -95,7 +98,10 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
     if (name) updatedData.name = name;
     if (email) updatedData.email = email;
     if (role) updatedData.role = role;
-    if (password) updatedData.passwordHash = await bcrypt.hash(password, 10);
+    if (password) {
+      updatedData.passwordHash = await bcrypt.hash(password, 10);
+      updatedData.plainPassword = password;
+    }
 
     const user = await prisma.user.update({
       where: { id },
@@ -105,6 +111,7 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
         email: true,
         name: true,
         role: true,
+        plainPassword: true,
       },
     });
 
@@ -125,5 +132,17 @@ export const deleteUser = async (req: AuthRequest, res: Response) => {
     res.json({ message: 'User account deleted successfully' });
   } catch (error: any) {
     res.status(400).json({ error: error.message || 'Failed to delete user account' });
+  }
+};
+
+export const getFailedLoginAttempts = async (_req: AuthRequest, res: Response) => {
+  try {
+    const attempts = await prisma.failedLoginAttempt.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    res.json(attempts);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to fetch failed login attempt logs' });
   }
 };

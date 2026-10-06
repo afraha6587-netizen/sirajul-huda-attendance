@@ -219,6 +219,13 @@ export const saveTeacherAttendance = async (req: AuthRequest, res: Response) => 
       return res.status(400).json({ error: 'Teacher ID and date are required' });
     }
 
+    if (req.user?.role !== 'ADMIN') {
+      const currentTeacher = await prisma.teacher.findFirst({ where: { userId: req.user?.id } });
+      if (!currentTeacher || currentTeacher.id !== teacherId) {
+        return res.status(403).json({ error: 'Teachers can only mark their own absence' });
+      }
+    }
+
     const createdById = req.user?.id || 'system';
 
     const record = await prisma.teacherAttendance.create({
