@@ -20,7 +20,6 @@ export const login = async (req: AuthRequest, res: Response) => {
       where: {
         email: {
           equals: cleanEmail,
-          mode: 'insensitive',
         },
       },
       include: { teacher: true },
