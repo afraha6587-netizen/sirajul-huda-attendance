@@ -361,21 +361,29 @@ export const restoreFullDatabaseBackup = async (req: AuthRequest, res: Response)
     // 1. Academic Years
     if (Array.isArray(db.academicYears)) {
       for (const y of db.academicYears) {
-        await prisma.academicYear.upsert({
-          where: { id: y.id },
-          create: {
-            id: y.id,
-            name: y.name,
-            startDate: new Date(y.startDate),
-            endDate: new Date(y.endDate),
-            isCurrent: y.isCurrent ?? true,
-            weeklyOffDay: y.weeklyOffDay || 'SUNDAY',
-          },
-          update: {
-            name: y.name,
-            isCurrent: y.isCurrent ?? true,
-          },
+        const existingYear = await prisma.academicYear.findFirst({
+          where: { OR: [{ id: y.id }, { name: y.name }] },
         });
+        if (existingYear) {
+          await prisma.academicYear.update({
+            where: { id: existingYear.id },
+            data: {
+              name: y.name,
+              isCurrent: y.isCurrent ?? true,
+            },
+          });
+        } else {
+          await prisma.academicYear.create({
+            data: {
+              id: y.id,
+              name: y.name,
+              startDate: new Date(y.startDate),
+              endDate: new Date(y.endDate),
+              isCurrent: y.isCurrent ?? true,
+              weeklyOffDay: y.weeklyOffDay || 'SUNDAY',
+            },
+          });
+        }
         restoredCount.academicYears++;
       }
     }
@@ -403,19 +411,24 @@ export const restoreFullDatabaseBackup = async (req: AuthRequest, res: Response)
     // 3. Classes
     if (Array.isArray(db.classes)) {
       for (const c of db.classes) {
-        await prisma.class.upsert({
-          where: { id: c.id },
-          create: {
-            id: c.id,
-            name: c.name,
-            academicYearId: c.academicYearId,
-            active: c.active ?? true,
-          },
-          update: {
-            name: c.name,
-            active: c.active ?? true,
-          },
+        const existingClass = await prisma.class.findFirst({
+          where: { OR: [{ id: c.id }, { name: c.name, academicYearId: c.academicYearId }] },
         });
+        if (existingClass) {
+          await prisma.class.update({
+            where: { id: existingClass.id },
+            data: { name: c.name, active: c.active ?? true },
+          });
+        } else {
+          await prisma.class.create({
+            data: {
+              id: c.id,
+              name: c.name,
+              academicYearId: c.academicYearId,
+              active: c.active ?? true,
+            },
+          });
+        }
         restoredCount.classes++;
       }
     }
@@ -423,20 +436,25 @@ export const restoreFullDatabaseBackup = async (req: AuthRequest, res: Response)
     // 4. Subjects
     if (Array.isArray(db.subjects)) {
       for (const s of db.subjects) {
-        await prisma.subject.upsert({
-          where: { id: s.id },
-          create: {
-            id: s.id,
-            name: s.name,
-            arabicName: s.arabicName || s.name,
-            code: s.code,
-            active: s.active ?? true,
-          },
-          update: {
-            name: s.name,
-            code: s.code,
-          },
+        const existingSub = await prisma.subject.findFirst({
+          where: { OR: [{ id: s.id }, { code: s.code }] },
         });
+        if (existingSub) {
+          await prisma.subject.update({
+            where: { id: existingSub.id },
+            data: { name: s.name, arabicName: s.arabicName || s.name, code: s.code },
+          });
+        } else {
+          await prisma.subject.create({
+            data: {
+              id: s.id,
+              name: s.name,
+              arabicName: s.arabicName || s.name,
+              code: s.code,
+              active: s.active ?? true,
+            },
+          });
+        }
         restoredCount.subjects++;
       }
     }
