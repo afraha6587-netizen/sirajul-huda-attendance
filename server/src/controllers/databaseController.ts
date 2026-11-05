@@ -358,6 +358,8 @@ export const restoreFullDatabaseBackup = async (req: AuthRequest, res: Response)
       teacherAttendances: 0,
     };
 
+    const defaultYear = (await prisma.academicYear.findFirst({ where: { isCurrent: true } })) || (await prisma.academicYear.findFirst());
+
     // 1. Academic Years
     if (Array.isArray(db.academicYears)) {
       for (const y of db.academicYears) {
@@ -390,20 +392,42 @@ export const restoreFullDatabaseBackup = async (req: AuthRequest, res: Response)
 
     // 2. Academic Months
     if (Array.isArray(db.academicMonths)) {
+
       for (const m of db.academicMonths) {
-        await prisma.academicMonth.upsert({
-          where: { id: m.id },
-          create: {
-            id: m.id,
-            academicYearId: m.academicYearId,
-            monthName: m.monthName,
-            year: Number(m.year),
-            workingDays: Number(m.workingDays || 23),
-          },
-          update: {
-            workingDays: Number(m.workingDays || 23),
-          },
+        // Resolve valid academicYearId
+        let targetYearId = m.academicYearId;
+        if (targetYearId) {
+          const yearExists = await prisma.academicYear.findUnique({ where: { id: targetYearId } });
+          if (!yearExists && defaultYear) targetYearId = defaultYear.id;
+        } else if (defaultYear) {
+          targetYearId = defaultYear.id;
+        }
+
+        const existingMonth = await prisma.academicMonth.findFirst({
+          where: {
+            OR: [
+              { id: m.id },
+              ...(targetYearId ? [{ academicYearId: targetYearId, monthName: m.monthName, year: Number(m.year) }] : [])
+            ]
+          }
         });
+
+        if (existingMonth) {
+          await prisma.academicMonth.update({
+            where: { id: existingMonth.id },
+            data: { workingDays: Number(m.workingDays || 23) }
+          });
+        } else if (targetYearId) {
+          await prisma.academicMonth.create({
+            data: {
+              id: m.id,
+              academicYearId: targetYearId,
+              monthName: m.monthName,
+              year: Number(m.year),
+              workingDays: Number(m.workingDays || 23),
+            }
+          });
+        }
         restoredCount.academicMonths++;
       }
     }
@@ -411,8 +435,16 @@ export const restoreFullDatabaseBackup = async (req: AuthRequest, res: Response)
     // 3. Classes
     if (Array.isArray(db.classes)) {
       for (const c of db.classes) {
+        let classYearId = c.academicYearId;
+        if (classYearId) {
+          const yExists = await prisma.academicYear.findUnique({ where: { id: classYearId } });
+          if (!yExists && defaultYear) classYearId = defaultYear.id;
+        } else if (defaultYear) {
+          classYearId = defaultYear.id;
+        }
+
         const existingClass = await prisma.class.findFirst({
-          where: { OR: [{ id: c.id }, { name: c.name, academicYearId: c.academicYearId }] },
+          where: { OR: [{ id: c.id }, ...(classYearId ? [{ name: c.name, academicYearId: classYearId }] : [])] },
         });
         if (existingClass) {
           await prisma.class.update({
@@ -424,7 +456,7 @@ export const restoreFullDatabaseBackup = async (req: AuthRequest, res: Response)
             data: {
               id: c.id,
               name: c.name,
-              academicYearId: c.academicYearId,
+              academicYearId: classYearId || c.academicYearId,
               active: c.active ?? true,
             },
           });
