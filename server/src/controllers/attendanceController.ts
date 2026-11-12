@@ -3,7 +3,7 @@ import { prisma } from '../utils/prisma';
 
 export const saveAttendanceSession = async (req: Request, res: Response) => {
   try {
-    const { classSubjectId, date, period, records, topicTaught, kitabPage } = req.body;
+    const { classSubjectId, date, period, records, topicTaught, kitabPage, isEdit, sessionId } = req.body;
     const userId = (req as any).user.id;
 
     if (!classSubjectId || !date || !records || !Array.isArray(records)) {
@@ -12,37 +12,67 @@ export const saveAttendanceSession = async (req: Request, res: Response) => {
 
     const cs = await prisma.classSubject.findUnique({
       where: { id: classSubjectId },
-      include: { subject: true, class: true },
+      include: { subject: true, class: true, teacher: true },
     });
 
     if (!cs) {
       return res.status(404).json({ error: 'Class Subject assignment not found' });
     }
 
-    // Check if session already exists for date + period + classSubject
     const dateStr = String(date).trim();
-    let session = await prisma.attendanceSession.findFirst({
+
+    // Check if session already exists for this subject on this date (prevents duplicate attendance on same day)
+    let existingSession = await prisma.attendanceSession.findFirst({
       where: {
         classSubjectId,
         date: dateStr,
-        period: Number(period || 1),
+      },
+      include: {
+        classSubject: {
+          include: {
+            subject: true,
+            teacher: true,
+          },
+        },
       },
     });
 
-    if (session) {
-      // Update existing session topic and records
+    // If attendance is already marked and this is NOT an explicit edit: reject second marking attempt
+    if (existingSession && !isEdit && sessionId !== existingSession.id) {
+      const subjectName = cs.subject.name || 'this subject';
+      const teacherName = cs.teacher.name || 'Usthad';
+      return res.status(409).json({
+        error: `Attendance is already marked for ${subjectName} on ${dateStr} (Period ${existingSession.period} by ${teacherName}). A second attendance cannot be created for the same subject on the same day. Please use the Edit Attendance option to update the existing record.`,
+        alreadyMarked: true,
+        existingSession: {
+          id: existingSession.id,
+          period: existingSession.period,
+          topicTaught: existingSession.topicTaught,
+          kitabPage: existingSession.kitabPage,
+          date: existingSession.date,
+        },
+      });
+    }
+
+    let session;
+    let isUpdated = false;
+
+    if (existingSession) {
+      // Update existing session topic and records in place (No duplicate session created)
       session = await prisma.attendanceSession.update({
-        where: { id: session.id },
+        where: { id: existingSession.id },
         data: {
-          topicTaught: topicTaught || session.topicTaught,
-          kitabPage: kitabPage || session.kitabPage,
+          period: Number(period || existingSession.period || 1),
+          topicTaught: topicTaught !== undefined ? topicTaught : existingSession.topicTaught,
+          kitabPage: kitabPage !== undefined ? kitabPage : existingSession.kitabPage,
         },
       });
 
-      // Delete old records and re-create
+      // Delete old records and re-create with updated statuses
       await prisma.attendanceRecord.deleteMany({
         where: { sessionId: session.id },
       });
+      isUpdated = true;
     } else {
       session = await prisma.attendanceSession.create({
         data: {
@@ -114,8 +144,11 @@ export const saveAttendanceSession = async (req: Request, res: Response) => {
     });
 
     res.json({
-      message: 'Attendance session and syllabus log saved successfully',
+      message: isUpdated
+        ? 'Pre-existing attendance record & syllabus log updated successfully'
+        : 'Attendance session and syllabus log saved successfully',
       sessionId: session.id,
+      isUpdated,
       whatsappAlerts,
     });
   } catch (error: any) {
@@ -188,9 +221,10 @@ export const getDailyAttendance = async (req: Request, res: Response) => {
 
 export const getAttendanceSessions = async (req: Request, res: Response) => {
   try {
-    const { classId, subjectId, date } = req.query;
+    const { classId, subjectId, classSubjectId, date } = req.query;
     const where: any = {};
 
+    if (classSubjectId) where.classSubjectId = String(classSubjectId);
     if (classId) where.classId = String(classId);
     if (subjectId) where.subjectId = String(subjectId);
     if (date) where.date = String(date);

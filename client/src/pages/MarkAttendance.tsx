@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { CheckSquare, Save, Search, Sparkles, CheckCircle2, XCircle, Clock, BookOpen, MessageSquare, Phone, Link2, AlertCircle } from 'lucide-react';
+import {
+  CheckSquare, Save, Search, Sparkles, CheckCircle2, XCircle, Clock,
+  BookOpen, MessageSquare, Phone, Link2, AlertCircle, Edit3, Lock, Unlock, RotateCcw
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../utils/api';
 import { ClassSubject, Student, AttendanceSession } from '../types';
@@ -19,6 +22,17 @@ export const MarkAttendance: React.FC = () => {
 
   const [students, setStudents] = useState<Student[]>([]);
   const [attendance, setAttendance] = useState<Record<string, 'PRESENT' | 'ABSENT' | 'LEAVE'>>({});
+
+  // Single attendance per subject per day lock & edit states
+  const [isAlreadyMarked, setIsAlreadyMarked] = useState<boolean>(false);
+  const [existingSession, setExistingSession] = useState<AttendanceSession | null>(null);
+  const [isEditing, setIsEditing] = useState<boolean>(true);
+
+  // Backup copies to revert if editing is cancelled
+  const [originalAttendance, setOriginalAttendance] = useState<Record<string, 'PRESENT' | 'ABSENT' | 'LEAVE'>>({});
+  const [originalTopicTaught, setOriginalTopicTaught] = useState<string>('');
+  const [originalKitabPage, setOriginalKitabPage] = useState<string>('');
+  const [originalPeriod, setOriginalPeriod] = useState<number>(1);
 
   const [loading, setLoading] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
@@ -42,7 +56,7 @@ export const MarkAttendance: React.FC = () => {
   const selectedCS = classSubjects.find((cs) => cs.id === selectedClassSubjectId);
 
   useEffect(() => {
-    if (!selectedCS) return;
+    if (!selectedCS || !selectedClassSubjectId) return;
     setLoading(true);
     setSuccessMsg('');
     setWhatsappAlerts([]);
@@ -51,8 +65,7 @@ export const MarkAttendance: React.FC = () => {
       api.get('/students', { params: { classId: selectedCS.classId } }),
       api.get('/attendance/sessions', {
         params: {
-          classId: selectedCS.classId,
-          subjectId: selectedCS.subjectId,
+          classSubjectId: selectedClassSubjectId,
           date: selectedDate,
         },
       }),
@@ -62,40 +75,90 @@ export const MarkAttendance: React.FC = () => {
         setStudents(studentList);
 
         const existingSessions: AttendanceSession[] = Array.isArray(sessRes.data) ? sessRes.data : [];
-        const matchingSession = existingSessions.find((s) => s.period === Number(period));
+        const sessionFound = existingSessions.length > 0 ? existingSessions[0] : null;
 
         const initialMap: Record<string, 'PRESENT' | 'ABSENT' | 'LEAVE'> = {};
 
-        if (matchingSession && matchingSession.records) {
-          setTopicTaught(matchingSession.topicTaught || '');
-          setKitabPage(matchingSession.kitabPage || '');
-          matchingSession.records.forEach((r: any) => {
+        if (sessionFound && sessionFound.records) {
+          // Attendance already recorded for this subject on this date!
+          setExistingSession(sessionFound);
+          setIsAlreadyMarked(true);
+          setIsEditing(false); // Locked view mode until user clicks "Edit Attendance"
+
+          const recordedPeriod = sessionFound.period || 1;
+          const recordedTopic = sessionFound.topicTaught || '';
+          const recordedKitab = sessionFound.kitabPage || '';
+
+          setPeriod(recordedPeriod);
+          setTopicTaught(recordedTopic);
+          setKitabPage(recordedKitab);
+
+          setOriginalPeriod(recordedPeriod);
+          setOriginalTopicTaught(recordedTopic);
+          setOriginalKitabPage(recordedKitab);
+
+          sessionFound.records.forEach((r: any) => {
             initialMap[r.studentId] = r.status as any;
           });
+          // Ensure all active students in class have an entry
+          studentList.forEach((st) => {
+            if (!initialMap[st.id]) initialMap[st.id] = 'PRESENT';
+          });
         } else {
+          // Not marked yet for this subject on this date
+          setExistingSession(null);
+          setIsAlreadyMarked(false);
+          setIsEditing(true);
+
           setTopicTaught('');
           setKitabPage('');
+          setOriginalTopicTaught('');
+          setOriginalKitabPage('');
+
           studentList.forEach((st) => {
             initialMap[st.id] = 'PRESENT'; // Default All Present
           });
         }
 
         setAttendance(initialMap);
+        setOriginalAttendance(initialMap);
       })
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
-  }, [selectedClassSubjectId, selectedDate, period]);
+  }, [selectedClassSubjectId, selectedDate]);
 
   const handleStatusChange = (studentId: string, status: 'PRESENT' | 'ABSENT' | 'LEAVE') => {
+    if (isAlreadyMarked && !isEditing) {
+      if (window.confirm('Attendance is already marked for this subject today. Would you like to enter Edit Mode to modify records?')) {
+        setIsEditing(true);
+        setAttendance((prev) => ({ ...prev, [studentId]: status }));
+      }
+      return;
+    }
     setAttendance((prev) => ({ ...prev, [studentId]: status }));
   };
 
   const handleMarkAll = (status: 'PRESENT' | 'ABSENT') => {
+    if (isAlreadyMarked && !isEditing) {
+      if (window.confirm('Attendance is already marked for this subject today. Would you like to enter Edit Mode to modify records?')) {
+        setIsEditing(true);
+      } else {
+        return;
+      }
+    }
     const updated: Record<string, 'PRESENT' | 'ABSENT' | 'LEAVE'> = {};
     students.forEach((st) => {
       updated[st.id] = status;
     });
     setAttendance(updated);
+  };
+
+  const handleCancelEdit = () => {
+    setAttendance({ ...originalAttendance });
+    setTopicTaught(originalTopicTaught);
+    setKitabPage(originalKitabPage);
+    setPeriod(originalPeriod);
+    setIsEditing(false);
   };
 
   const generateWhatsAppUrl = (student: Student, status: string) => {
@@ -128,9 +191,23 @@ export const MarkAttendance: React.FC = () => {
         topicTaught,
         kitabPage,
         records,
+        isEdit: isAlreadyMarked,
+        sessionId: existingSession?.id,
       });
 
-      setSuccessMsg('Attendance session & Usthad syllabus log saved successfully!');
+      if (isAlreadyMarked) {
+        setSuccessMsg('Pre-added attendance record & syllabus log updated successfully! (No duplicate session created)');
+      } else {
+        setSuccessMsg('Attendance session & Usthad syllabus log saved successfully!');
+      }
+
+      setIsAlreadyMarked(true);
+      setIsEditing(false);
+      setOriginalAttendance({ ...attendance });
+      setOriginalTopicTaught(topicTaught);
+      setOriginalKitabPage(kitabPage);
+      setOriginalPeriod(period);
+
       if (res.data.whatsappAlerts) {
         setWhatsappAlerts(res.data.whatsappAlerts);
       }
@@ -169,6 +246,70 @@ export const MarkAttendance: React.FC = () => {
               <Link2 className="w-4 h-4" />
               <span>Assign Subjects to Classes</span>
             </Link>
+          </div>
+        )}
+
+        {/* ALREADY MARKED ALERT BANNER (Locked View) */}
+        {isAlreadyMarked && !isEditing && (
+          <div className="p-5 rounded-2xl bg-amber-50 border-2 border-amber-300 text-amber-900 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-amber-200/80 flex items-center justify-center shrink-0 text-amber-800">
+                <Lock className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-md bg-amber-200 text-amber-900 text-[10px] font-black uppercase tracking-wider">
+                    Already Marked
+                  </span>
+                  <h4 className="text-sm font-bold">
+                    Attendance Already Marked for {selectedCS?.subject.name} Today
+                  </h4>
+                </div>
+                <p className="text-xs text-amber-800 mt-1">
+                  Recorded for <strong>Period {period}</strong> on <strong>{selectedDate}</strong> by {selectedCS?.teacher.name}. A second attendance cannot be created on the same day. Click <strong>Edit Attendance</strong> below if you need to update this record.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsEditing(true)}
+              className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-md flex items-center gap-2 shrink-0 transition-all hover:scale-[1.02]"
+            >
+              <Edit3 className="w-4 h-4" />
+              <span>Edit Attendance</span>
+            </button>
+          </div>
+        )}
+
+        {/* EDITING PRE-ADDED RECORD BANNER (Edit Mode) */}
+        {isAlreadyMarked && isEditing && (
+          <div className="p-5 rounded-2xl bg-blue-50 border-2 border-blue-300 text-blue-900 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="w-10 h-10 rounded-xl bg-blue-200/80 flex items-center justify-center shrink-0 text-blue-800">
+                <Edit3 className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-md bg-blue-200 text-blue-900 text-[10px] font-black uppercase tracking-wider">
+                    Edit Mode Active
+                  </span>
+                  <h4 className="text-sm font-bold">
+                    Editing Pre-Added Attendance Record
+                  </h4>
+                </div>
+                <p className="text-xs text-blue-800 mt-1">
+                  You are editing the existing attendance record for {selectedCS?.subject.name} (Period {period}). Saving will update the pre-added data in-place — no duplicate attendance will be marked.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleCancelEdit}
+              className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 font-bold text-xs border border-slate-300 shadow-xs flex items-center gap-1.5 shrink-0"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Cancel Edit</span>
+            </button>
           </div>
         )}
 
@@ -212,13 +353,21 @@ export const MarkAttendance: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-                Period Number
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-between">
+                <span>Period Number</span>
+                {isAlreadyMarked && !isEditing && (
+                  <span className="text-[10px] text-amber-700 font-bold flex items-center gap-1">
+                    <Lock className="w-3 h-3" /> Locked
+                  </span>
+                )}
               </label>
               <select
                 value={period}
                 onChange={(e) => setPeriod(Number(e.target.value))}
-                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:border-brand-600 focus:outline-none font-bold"
+                disabled={isAlreadyMarked && !isEditing}
+                className={`w-full px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:border-brand-600 focus:outline-none font-bold ${
+                  isAlreadyMarked && !isEditing ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-slate-50/50'
+                }`}
               >
                 {[1, 2, 3, 4, 5, 6, 7, 8].map((p) => (
                   <option key={p} value={p}>
@@ -235,26 +384,42 @@ export const MarkAttendance: React.FC = () => {
               <label className="block text-[11px] font-extrabold text-slate-600 uppercase tracking-wider mb-1 flex items-center gap-1.5">
                 <BookOpen className="w-3.5 h-3.5 text-brand-600" />
                 <span>Kitab Lesson / Topic Taught Today</span>
+                {isAlreadyMarked && !isEditing && (
+                  <span className="text-[10px] text-amber-700 font-bold flex items-center gap-1 ml-auto">
+                    <Lock className="w-3 h-3" /> Locked
+                  </span>
+                )}
               </label>
               <input
                 type="text"
                 placeholder="e.g. كتاب الصلاة - باب شروط الصلاة"
                 value={topicTaught}
                 onChange={(e) => setTopicTaught(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50/50 text-xs font-semibold focus:border-brand-600 focus:outline-none"
+                disabled={isAlreadyMarked && !isEditing}
+                className={`w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:border-brand-600 focus:outline-none ${
+                  isAlreadyMarked && !isEditing ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-slate-50/50'
+                }`}
               />
             </div>
 
             <div>
-              <label className="block text-[11px] font-extrabold text-slate-600 uppercase tracking-wider mb-1">
-                Kitab Page / Chapter Reference
+              <label className="block text-[11px] font-extrabold text-slate-600 uppercase tracking-wider mb-1 flex items-center justify-between">
+                <span>Kitab Page / Chapter Reference</span>
+                {isAlreadyMarked && !isEditing && (
+                  <span className="text-[10px] text-amber-700 font-bold flex items-center gap-1">
+                    <Lock className="w-3 h-3" /> Locked
+                  </span>
+                )}
               </label>
               <input
                 type="text"
                 placeholder="e.g. Page 45 - 48"
                 value={kitabPage}
                 onChange={(e) => setKitabPage(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50/50 text-xs font-semibold focus:border-brand-600 focus:outline-none"
+                disabled={isAlreadyMarked && !isEditing}
+                className={`w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold focus:border-brand-600 focus:outline-none ${
+                  isAlreadyMarked && !isEditing ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : 'bg-slate-50/50'
+                }`}
               />
             </div>
           </div>
@@ -290,24 +455,60 @@ export const MarkAttendance: React.FC = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => handleMarkAll('PRESENT')}
-              className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-bold hover:bg-emerald-100 border border-emerald-200"
+              disabled={isAlreadyMarked && !isEditing}
+              className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-bold hover:bg-emerald-100 border border-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Mark All Present
             </button>
             <button
               onClick={() => handleMarkAll('ABSENT')}
-              className="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-800 text-xs font-bold hover:bg-rose-100 border border-rose-200"
+              disabled={isAlreadyMarked && !isEditing}
+              className="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-800 text-xs font-bold hover:bg-rose-100 border border-rose-200 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Mark All Absent
             </button>
-            <button
-              onClick={handleSave}
-              disabled={saving || !selectedClassSubjectId}
-              className="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-colors disabled:opacity-50"
-            >
-              <Save className="w-4 h-4" />
-              <span>{saving ? 'Saving...' : 'Save Session Attendance'}</span>
-            </button>
+
+            {/* ACTION BUTTON: Dynamically switches between Edit, Update, and Save */}
+            {isAlreadyMarked && !isEditing ? (
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-all hover:scale-[1.02]"
+              >
+                <Edit3 className="w-4 h-4" />
+                <span>Edit Attendance</span>
+              </button>
+            ) : isAlreadyMarked && isEditing ? (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-300 shadow-xs flex items-center gap-1.5"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Cancel</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving || !selectedClassSubjectId}
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-colors disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{saving ? 'Updating...' : 'Update Attendance'}</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving || !selectedClassSubjectId}
+                className="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-colors disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                <span>{saving ? 'Saving...' : 'Save Session Attendance'}</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -352,9 +553,10 @@ export const MarkAttendance: React.FC = () => {
                               onClick={() => handleStatusChange(st.id, 'PRESENT')}
                               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                                 stStatus === 'PRESENT'
-                                  ? 'bg-emerald-600 text-white shadow-sm'
+                                  ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-400/50'
                                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                              }`}
+                              } ${isAlreadyMarked && !isEditing ? 'opacity-90 cursor-pointer' : ''}`}
+                              title={isAlreadyMarked && !isEditing ? 'Attendance is locked. Click to enter edit mode' : ''}
                             >
                               Present
                             </button>
@@ -364,9 +566,10 @@ export const MarkAttendance: React.FC = () => {
                               onClick={() => handleStatusChange(st.id, 'ABSENT')}
                               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                                 stStatus === 'ABSENT'
-                                  ? 'bg-rose-600 text-white shadow-sm'
+                                  ? 'bg-rose-600 text-white shadow-sm ring-2 ring-rose-400/50'
                                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                              }`}
+                              } ${isAlreadyMarked && !isEditing ? 'opacity-90 cursor-pointer' : ''}`}
+                              title={isAlreadyMarked && !isEditing ? 'Attendance is locked. Click to enter edit mode' : ''}
                             >
                               Absent
                             </button>
@@ -376,9 +579,10 @@ export const MarkAttendance: React.FC = () => {
                               onClick={() => handleStatusChange(st.id, 'LEAVE')}
                               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                                 stStatus === 'LEAVE'
-                                  ? 'bg-amber-500 text-white shadow-sm'
+                                  ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-400/50'
                                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                              }`}
+                              } ${isAlreadyMarked && !isEditing ? 'opacity-90 cursor-pointer' : ''}`}
+                              title={isAlreadyMarked && !isEditing ? 'Attendance is locked. Click to enter edit mode' : ''}
                             >
                               Leave
                             </button>
