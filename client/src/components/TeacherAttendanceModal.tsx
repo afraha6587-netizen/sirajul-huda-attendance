@@ -26,6 +26,7 @@ export const TeacherAttendanceModal: React.FC<TeacherAttendanceModalProps> = ({ 
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    if (!isAdmin) return;
     setLoading(true);
     Promise.all([
       api.get('/teachers'),
@@ -36,16 +37,35 @@ export const TeacherAttendanceModal: React.FC<TeacherAttendanceModalProps> = ({ 
         setTeachers(tRes.data);
         setClasses(cRes.data);
         setRecords(rRes.data);
-
-        // Auto select current teacher if logged in user is teacher
-        if (!isAdmin && tRes.data.length > 0) {
-          const currentT = tRes.data.find((t: any) => t.user?.email === user?.email);
-          if (currentT) setSelectedTeacherId(currentT.id);
+        if (tRes.data.length > 0) {
+          setSelectedTeacherId(tRes.data[0].id);
         }
       })
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
-  }, []);
+  }, [isAdmin]);
+
+  if (!isAdmin) {
+    return (
+      <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl text-center space-y-4">
+          <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+            <AlertCircle className="w-6 h-6" />
+          </div>
+          <h3 className="text-base font-bold text-slate-900">Access Restricted</h3>
+          <p className="text-xs text-slate-600">
+            Teacher attendance and leave records can only be marked and managed by Super Administrator. Teachers cannot mark teacher attendance.
+          </p>
+          <button
+            onClick={onClose}
+            className="w-full py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-colors"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

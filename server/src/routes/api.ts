@@ -114,8 +114,8 @@ router.put('/teachers/:id', requireAdmin, updateTeacher);
 router.put('/teachers/:id/approve', requireAdmin, approveTeacher);
 router.delete('/teachers/:id', requireAdmin, deleteTeacher);
 router.get('/teacher-attendance', getTeacherAttendance);
-router.post('/teacher-attendance', saveTeacherAttendance);
-router.delete('/teacher-attendance/:id', deleteTeacherAttendance);
+router.post('/teacher-attendance', requireAdmin, saveTeacherAttendance);
+router.delete('/teacher-attendance/:id', requireAdmin, deleteTeacherAttendance);
 
 // Class-Subject Assignment Routes
 router.get('/class-subjects', getClassSubjects);

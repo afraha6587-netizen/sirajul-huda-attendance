@@ -19,9 +19,13 @@ import { Navbar } from '../components/Navbar';
 import { useAcademic } from '../context/AcademicContext';
 import { StudentsListModal } from '../components/StudentsListModal';
 import { TeacherAttendanceModal } from '../components/TeacherAttendanceModal';
+import { useAuth } from '../context/AuthContext';
 
 export const Dashboard: React.FC = () => {
   const { selectedMonthId } = useAcademic();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
+
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -65,7 +69,7 @@ export const Dashboard: React.FC = () => {
           {kpiCards.map((card, idx) => {
             const Icon = card.icon;
             const isStudentsCard = card.title === 'Total Students';
-            const isTeachersCard = card.title === 'Active Teachers';
+            const isTeachersCard = card.title === 'Active Teachers' && isAdmin;
 
             return (
               <div
@@ -79,7 +83,7 @@ export const Dashboard: React.FC = () => {
                     ? 'cursor-pointer hover:border-brand-500 hover:shadow-md hover:scale-[1.02]'
                     : ''
                 }`}
-                title={isStudentsCard ? 'Click to view active students roster & remarks' : isTeachersCard ? 'Click to log teacher leave/absence' : ''}
+                title={isStudentsCard ? 'Click to view active students roster & remarks' : isTeachersCard ? 'Click to log teacher leave/absence (Super Admin)' : ''}
               >
                 <div>
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{card.title}</p>
@@ -116,13 +120,16 @@ export const Dashboard: React.FC = () => {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            <button
-              onClick={() => setShowTeacherAttendanceModal(true)}
-              className="px-4 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shadow-md flex items-center gap-2 transition-colors"
-            >
-              <UserX className="w-4 h-4" />
-              <span>Teacher Leave Log</span>
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => setShowTeacherAttendanceModal(true)}
+                className="px-4 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shadow-md flex items-center gap-2 transition-colors"
+                title="Super Admin: Log Usthad Absence or Leave"
+              >
+                <UserX className="w-4 h-4" />
+                <span>Teacher Leave Log</span>
+              </button>
+            )}
             <Link
               to="/mark-attendance"
               className="px-5 py-3 rounded-xl bg-white text-brand-700 font-bold text-xs shadow-md hover:bg-brand-50 flex items-center gap-2 transition-colors"

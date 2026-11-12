@@ -220,10 +220,7 @@ export const saveTeacherAttendance = async (req: AuthRequest, res: Response) => 
     }
 
     if (req.user?.role !== 'ADMIN') {
-      const currentTeacher = await prisma.teacher.findFirst({ where: { userId: req.user?.id } });
-      if (!currentTeacher || currentTeacher.id !== teacherId) {
-        return res.status(403).json({ error: 'Teachers can only mark their own absence' });
-      }
+      return res.status(403).json({ error: 'Permission denied. Teacher attendance and leaves can only be marked by Super Admin.' });
     }
 
     const createdById = req.user?.id || 'system';
