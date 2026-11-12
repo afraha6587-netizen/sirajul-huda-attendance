@@ -72,6 +72,30 @@ export const removeSubjectFromClass = async (req: AuthRequest, res: Response) =>
   }
 };
 
+export const updateClassSubject = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { teacherId, active } = req.body;
+
+    const updated = await prisma.classSubject.update({
+      where: { id },
+      data: {
+        ...(teacherId && { teacherId }),
+        ...(active !== undefined && { active }),
+      },
+      include: {
+        class: true,
+        subject: true,
+        teacher: true,
+      },
+    });
+
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to update assignment' });
+  }
+};
+
 export const batchAssignSubjects = async (req: AuthRequest, res: Response) => {
   try {
     const { classId, subjectIds, teacherId } = req.body;

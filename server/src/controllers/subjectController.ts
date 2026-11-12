@@ -2,12 +2,32 @@ import { Response } from 'express';
 import { prisma } from '../utils/prisma';
 import { AuthRequest } from '../middleware/auth';
 
-export const getSubjects = async (_req: AuthRequest, res: Response) => {
+export const getSubjects = async (req: AuthRequest, res: Response) => {
   try {
+    const { classId } = req.query;
+    const where: any = {};
+
+    if (classId) {
+      if (classId === 'unassigned') {
+        where.classSubjects = { none: {} };
+      } else {
+        where.classSubjects = {
+          some: { classId: String(classId), active: true },
+        };
+      }
+    }
+
     const subjects = await prisma.subject.findMany({
+      where,
       include: {
         _count: {
           select: { classSubjects: true },
+        },
+        classSubjects: {
+          include: {
+            class: true,
+            teacher: true,
+          },
         },
       },
       orderBy: { name: 'asc' },
@@ -20,7 +40,7 @@ export const getSubjects = async (_req: AuthRequest, res: Response) => {
 
 export const createSubject = async (req: AuthRequest, res: Response) => {
   try {
-    const { name, arabicName, code } = req.body;
+    const { name, arabicName, code, classId, teacherId } = req.body;
     if (!name || !code) {
       return res.status(400).json({ error: 'Subject name and code are required' });
     }
@@ -36,6 +56,28 @@ export const createSubject = async (req: AuthRequest, res: Response) => {
         arabicName: arabicName || name,
         code,
         active: true,
+        ...(classId && teacherId
+          ? {
+              classSubjects: {
+                create: {
+                  classId,
+                  teacherId,
+                  active: true,
+                },
+              },
+            }
+          : {}),
+      },
+      include: {
+        _count: {
+          select: { classSubjects: true },
+        },
+        classSubjects: {
+          include: {
+            class: true,
+            teacher: true,
+          },
+        },
       },
     });
 

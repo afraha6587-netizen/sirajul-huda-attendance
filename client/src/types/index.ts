@@ -67,6 +67,13 @@ export interface Subject {
   _count?: {
     classSubjects?: number;
   };
+  classSubjects?: {
+    id: string;
+    classId: string;
+    teacherId: string;
+    class?: Class;
+    teacher?: Teacher;
+  }[];
 }
 
 export interface ClassSubject {
