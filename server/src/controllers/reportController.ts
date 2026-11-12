@@ -44,8 +44,8 @@ export const getMonthlyAttendanceReport = async (req: AuthRequest, res: Response
       return res.status(404).json({ error: 'Class or Academic Month not found' });
     }
 
-    // Dynamic Net Working Days Calculation
-    const totalWorkingDays = await calculateNetWorkingDaysForMonth(month.id);
+    // Dynamic Net Working Days Calculation (accounts for general and class-specific leaves)
+    const totalWorkingDays = await calculateNetWorkingDaysForMonth(month.id, cls.id);
 
     const threshold = settings?.attendanceThreshold || 75.0;
     const { startStr, endStr } = getMonthDateBounds(month.monthName, month.year);
@@ -146,10 +146,9 @@ export const getMonthlyAttendanceReport = async (req: AuthRequest, res: Response
             grandTotalAttended += attendedCount;
             totalStudentSubjectLeaves += leaveCount;
 
-            // Reduce denominator by student LEAVE count so percentage is protected
-            const netTaken = Math.max(0, subj.takenClasses - leaveCount);
-            const percentage = netTaken > 0
-              ? Number(((attendedCount / netTaken) * 100).toFixed(2))
+            // Attendance percentage accurately reflects attended classes vs taken classes
+            const percentage = subj.takenClasses > 0
+              ? Number(((attendedCount / subj.takenClasses) * 100).toFixed(2))
               : 0;
 
             return {
@@ -158,16 +157,15 @@ export const getMonthlyAttendanceReport = async (req: AuthRequest, res: Response
               attended: attendedCount,
               taken: subj.takenClasses,
               leaveCount,
-              netTaken,
+              netTaken: subj.takenClasses,
               percentage,
             };
           })
         );
 
-        // 1. SESSION-WISE (SUBJECT/PERIOD) ATTENDANCE TOTAL (Calculated purely from session records)
-        const sessionWiseNetTaken = Math.max(0, grandTotalTaken - totalStudentSubjectLeaves);
-        const sessionWisePercentage = sessionWiseNetTaken > 0
-          ? Number(((grandTotalAttended / sessionWiseNetTaken) * 100).toFixed(2))
+        // 1. SESSION-WISE (SUBJECT/PERIOD) ATTENDANCE TOTAL (Physical attended vs total sessions taken)
+        const sessionWisePercentage = grandTotalTaken > 0
+          ? Number(((grandTotalAttended / grandTotalTaken) * 100).toFixed(2))
           : 0;
 
         // 2. DAY-WISE ATTENDANCE TOTAL (Calculated purely from daily attendance records)
@@ -190,8 +188,8 @@ export const getMonthlyAttendanceReport = async (req: AuthRequest, res: Response
           }),
         ]);
 
-        // Net working days reduced by teacher absence & student official LEAVE
-        const dayWiseNetWorkingDays = Math.max(1, totalWorkingDays - distinctTeacherAbsenceDates - studentDailyLeaveCount);
+        // Net working days reduced by teacher absence and class holidays
+        const dayWiseNetWorkingDays = Math.max(1, totalWorkingDays - distinctTeacherAbsenceDates);
         const monthlyLeave = Math.max(0, totalWorkingDays - presentDaysCount);
         const dayWisePercentage = Number(((presentDaysCount / dayWiseNetWorkingDays) * 100).toFixed(2));
 
@@ -210,7 +208,7 @@ export const getMonthlyAttendanceReport = async (req: AuthRequest, res: Response
           sessionWiseAttended: grandTotalAttended,
           sessionWiseTaken: grandTotalTaken,
           sessionWiseLeave: totalStudentSubjectLeaves,
-          sessionWiseNetTaken,
+          sessionWiseNetTaken: grandTotalTaken,
           sessionWisePercentage,
           overallPercentage: sessionWisePercentage, // Backward compatible alias
 

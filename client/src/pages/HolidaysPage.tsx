@@ -33,6 +33,7 @@ export const HolidaysPage: React.FC = () => {
   // Month Calendar Data
   const [calendarGridData, setCalendarGridData] = useState<any | null>(null);
   const [holidays, setHolidays] = useState<any[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Modal State for Declaring Leave/Holiday
@@ -44,7 +45,14 @@ export const HolidaysPage: React.FC = () => {
     type: 'HOSTEL_LEAVE',
     academicYearId: '',
     monthId: '',
+    classId: '',
   });
+
+  useEffect(() => {
+    api.get('/classes').then((res) => {
+      setClasses(Array.isArray(res.data) ? res.data : []);
+    });
+  }, []);
 
   // Selected Day Detail Drawer Modal
   const [selectedDayDetail, setSelectedDayDetail] = useState<any | null>(null);
@@ -89,6 +97,7 @@ export const HolidaysPage: React.FC = () => {
       type: 'HOSTEL_LEAVE',
       academicYearId: selectedYearId || academicYears[0]?.id || '',
       monthId: selectedMonthId || academicMonths[0]?.id || '',
+      classId: '',
     });
     setIsModalOpen(true);
   };
@@ -413,6 +422,29 @@ export const HolidaysPage: React.FC = () => {
 
           <div>
             <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+              Applies To (Target Scope)
+            </label>
+            <select
+              value={formData.classId}
+              onChange={(e) => setFormData({ ...formData, classId: e.target.value })}
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:border-brand-600 focus:bg-white focus:outline-none font-bold"
+            >
+              <option value="">All Classes (Whole College)</option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  Class {c.name} Only (Class-Specific Leave)
+                </option>
+              ))}
+            </select>
+            {formData.classId && (
+              <p className="text-[11px] text-amber-700 mt-1 font-semibold">
+                ✨ This leave will only apply to the selected class. Its monthly working days will adjust so students in this class won't lose attendance percentage.
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
               Category
             </label>
             <select
@@ -422,7 +454,8 @@ export const HolidaysPage: React.FC = () => {
             >
               <option value="HOSTEL_LEAVE">Hostel Monthly Leave</option>
               <option value="HOLIDAY">Institutional Holiday</option>
-              <option value="SPECIAL">Special Off Day</option>
+              <option value="SPECIAL">Special Off Day / Event</option>
+              <option value="CLASS_LEAVE">Class Leave / Study Day</option>
             </select>
           </div>
 

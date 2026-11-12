@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import { prisma } from '../utils/prisma';
 
-// Helper to calculate exact Net Working Days (Total days - Sundays - declared holidays without double counting)
-export async function calculateNetWorkingDaysForMonth(academicMonthId: string): Promise<number> {
+// Helper to calculate exact Net Working Days (Total days - Sundays - declared holidays / class leaves without double counting)
+export async function calculateNetWorkingDaysForMonth(academicMonthId: string, classId?: string): Promise<number> {
   const month = await prisma.academicMonth.findUnique({
     where: { id: academicMonthId },
   });
@@ -23,6 +23,15 @@ export async function calculateNetWorkingDaysForMonth(academicMonthId: string): 
     },
   });
 
+  // Filter holidays: apply college-wide holidays OR class-specific leaves matching classId
+  const applicableHolidays = declaredHolidays.filter((h) => {
+    if (h.type && h.type.startsWith('CLASS_LEAVE:')) {
+      const targetClassId = h.type.split(':')[1];
+      return classId ? targetClassId === classId : false;
+    }
+    return true; // College-wide holiday
+  });
+
   let workingDaysCount = 0;
 
   for (let dayNum = 1; dayNum <= totalDaysInMonth; dayNum++) {
@@ -33,8 +42,8 @@ export async function calculateNetWorkingDaysForMonth(academicMonthId: string): 
     const monthNumStr = (monthIdx + 1) < 10 ? `0${monthIdx + 1}` : `${monthIdx + 1}`;
     const fullDateStr = `${month.year}-${monthNumStr}-${dayStr}`;
 
-    // Check if date falls inside any declared holiday range
-    const isDeclaredHoliday = declaredHolidays.some(
+    // Check if date falls inside any applicable holiday range
+    const isDeclaredHoliday = applicableHolidays.some(
       (h) => fullDateStr >= h.startDate && fullDateStr <= h.endDate
     );
 
@@ -44,8 +53,8 @@ export async function calculateNetWorkingDaysForMonth(academicMonthId: string): 
     }
   }
 
-  // Update workingDays in database for consistency
-  if (month.workingDays !== workingDaysCount) {
+  // Update workingDays in database for consistency if general calculation
+  if (!classId && month.workingDays !== workingDaysCount) {
     await prisma.academicMonth.update({
       where: { id: month.id },
       data: { workingDays: workingDaysCount },
@@ -57,7 +66,7 @@ export async function calculateNetWorkingDaysForMonth(academicMonthId: string): 
 
 export const getHolidays = async (req: Request, res: Response) => {
   try {
-    const { monthId, yearId } = req.query;
+    const { monthId, yearId, classId } = req.query;
     const where: any = {};
     if (monthId) where.monthId = String(monthId);
     if (yearId) where.academicYearId = String(yearId);
@@ -67,7 +76,12 @@ export const getHolidays = async (req: Request, res: Response) => {
       include: { academicMonth: true },
       orderBy: { startDate: 'asc' },
     });
-    res.json(holidays);
+
+    const filtered = classId
+      ? holidays.filter((h) => !h.type.startsWith('CLASS_LEAVE:') || h.type === `CLASS_LEAVE:${classId}`)
+      : holidays;
+
+    res.json(filtered);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch holidays' });
   }
@@ -75,18 +89,20 @@ export const getHolidays = async (req: Request, res: Response) => {
 
 export const createHoliday = async (req: Request, res: Response) => {
   try {
-    const { title, startDate, endDate, type, academicYearId, monthId } = req.body;
+    const { title, startDate, endDate, type, academicYearId, monthId, classId } = req.body;
 
     if (!title || !startDate || !endDate || !academicYearId) {
       return res.status(400).json({ error: 'Title, Start Date, End Date, and Academic Year are required' });
     }
 
+    const holidayType = classId ? `CLASS_LEAVE:${classId}` : (type || 'HOLIDAY');
+
     const holiday = await prisma.institutionHoliday.create({
       data: {
-        title,
+        title: String(title).trim(),
         startDate: String(startDate).trim(),
         endDate: String(endDate).trim(),
-        type: type || 'HOLIDAY',
+        type: holidayType,
         academicYearId,
         monthId: monthId || undefined,
         affectsWorkingDays: true,

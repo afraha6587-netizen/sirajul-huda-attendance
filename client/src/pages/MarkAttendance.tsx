@@ -138,7 +138,7 @@ export const MarkAttendance: React.FC = () => {
     setAttendance((prev) => ({ ...prev, [studentId]: status }));
   };
 
-  const handleMarkAll = (status: 'PRESENT' | 'ABSENT') => {
+  const handleMarkAll = (status: 'PRESENT' | 'ABSENT' | 'LEAVE') => {
     if (isAlreadyMarked && !isEditing) {
       if (window.confirm('Attendance is already marked for this subject today. Would you like to enter Edit Mode to modify records?')) {
         setIsEditing(true);
@@ -466,6 +466,14 @@ export const MarkAttendance: React.FC = () => {
               className="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-800 text-xs font-bold hover:bg-rose-100 border border-rose-200 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Mark All Absent
+            </button>
+            <button
+              onClick={() => handleMarkAll('LEAVE')}
+              disabled={isAlreadyMarked && !isEditing}
+              className="px-3 py-1.5 rounded-lg bg-amber-50 text-amber-800 text-xs font-bold hover:bg-amber-100 border border-amber-200 disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Give leave to all students in this session"
+            >
+              Mark All Leave
             </button>
 
             {/* ACTION BUTTON: Dynamically switches between Edit, Update, and Save */}

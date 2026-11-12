@@ -148,6 +148,13 @@ export const MarkDailyAttendance: React.FC = () => {
               All Present
             </button>
             <button
+              onClick={() => handleMarkAll('LEAVE')}
+              className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-bold border border-amber-200"
+              title="Give leave to entire class today"
+            >
+              All Leave
+            </button>
+            <button
               onClick={handleSave}
               disabled={saving}
               className="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs shadow-md flex items-center gap-2"
