@@ -71,3 +71,81 @@ export const removeSubjectFromClass = async (req: AuthRequest, res: Response) =>
     res.status(400).json({ error: error.message || 'Failed to remove assignment' });
   }
 };
+
+export const batchAssignSubjects = async (req: AuthRequest, res: Response) => {
+  try {
+    const { classId, subjectIds, teacherId } = req.body;
+    if (!classId || !Array.isArray(subjectIds) || !teacherId) {
+      return res.status(400).json({ error: 'classId, subjectIds array, and teacherId are required' });
+    }
+
+    let count = 0;
+    for (const subjectId of subjectIds) {
+      await prisma.classSubject.upsert({
+        where: {
+          classId_subjectId: { classId, subjectId },
+        },
+        update: {
+          teacherId,
+          active: true,
+        },
+        create: {
+          classId,
+          subjectId,
+          teacherId,
+          active: true,
+        },
+      });
+      count++;
+    }
+
+    res.json({ message: `Successfully assigned ${count} subjects`, count });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to batch assign subjects' });
+  }
+};
+
+export const copyClassSubjectAssignments = async (req: AuthRequest, res: Response) => {
+  try {
+    const { fromClassId, toClassId } = req.body;
+    if (!fromClassId || !toClassId) {
+      return res.status(400).json({ error: 'fromClassId and toClassId are required' });
+    }
+
+    if (fromClassId === toClassId) {
+      return res.status(400).json({ error: 'Source and destination class cannot be the same' });
+    }
+
+    const sourceAssignments = await prisma.classSubject.findMany({
+      where: { classId: fromClassId, active: true },
+    });
+
+    if (sourceAssignments.length === 0) {
+      return res.status(400).json({ error: 'No active assignments found in source class to copy' });
+    }
+
+    let copiedCount = 0;
+    for (const src of sourceAssignments) {
+      await prisma.classSubject.upsert({
+        where: {
+          classId_subjectId: { classId: toClassId, subjectId: src.subjectId },
+        },
+        update: {
+          teacherId: src.teacherId,
+          active: true,
+        },
+        create: {
+          classId: toClassId,
+          subjectId: src.subjectId,
+          teacherId: src.teacherId,
+          active: true,
+        },
+      });
+      copiedCount++;
+    }
+
+    res.json({ message: `Successfully copied ${copiedCount} subject assignments`, count: copiedCount });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || 'Failed to copy assignments' });
+  }
+};

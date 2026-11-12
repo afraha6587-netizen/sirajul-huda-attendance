@@ -17,7 +17,7 @@ import {
   getTeachers, createTeacher, updateTeacher, deleteTeacher, approveTeacher,
   getTeacherAttendance, saveTeacherAttendance, deleteTeacherAttendance,
 } from '../controllers/teacherController';
-import { getClassSubjects, assignSubjectToClass, removeSubjectFromClass } from '../controllers/classSubjectController';
+import { getClassSubjects, assignSubjectToClass, removeSubjectFromClass, batchAssignSubjects, copyClassSubjectAssignments } from '../controllers/classSubjectController';
 import {
   saveAttendanceSession, saveDailyAttendance, getDailyAttendance,
   getAttendanceSessions, getSessionById, deleteSession,
@@ -120,6 +120,8 @@ router.delete('/teacher-attendance/:id', requireAdmin, deleteTeacherAttendance);
 // Class-Subject Assignment Routes
 router.get('/class-subjects', getClassSubjects);
 router.post('/class-subjects', requireAdmin, assignSubjectToClass);
+router.post('/class-subjects/batch', requireAdmin, batchAssignSubjects);
+router.post('/class-subjects/copy', requireAdmin, copyClassSubjectAssignments);
 router.delete('/class-subjects/:id', requireAdmin, removeSubjectFromClass);
 
 // Attendance & Syllabus Routes
