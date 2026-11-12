@@ -32,7 +32,10 @@ import { getDatabaseOverview, getDatabaseTableData, exportFullDatabaseBackup, ex
 import { authenticateToken, requireAdmin } from '../middleware/auth';
 
 const router = Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 },
+});
 
 // 1. PUBLIC ROUTES (No Token Required)
 router.post('/auth/login', login);

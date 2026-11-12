@@ -179,15 +179,19 @@ export const DatabaseViewerPage: React.FC = () => {
     formData.append('file', file);
 
     try {
-      const res = await api.post('/database/restore', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-      alert(res.data.message || 'Database backup restored successfully!');
+      // Allow browser to set the multipart boundary automatically
+      const res = await api.post('/database/restore', formData);
+      const counts = res.data.restoredCount;
+      const countSummary = counts
+        ? `\n\nRestored: ${counts.students || 0} students, ${counts.classes || 0} classes, ${counts.subjects || 0} subjects, ${counts.teachers || 0} teachers, ${counts.sessions || 0} attendance sessions, ${counts.daily || 0} daily records.`
+        : '';
+      alert((res.data.message || 'Database backup restored successfully!') + countSummary);
       fetchOverview();
       fetchTableData(selectedTable);
     } catch (err: any) {
       console.error('Failed to restore backup:', err);
-      alert(err.response?.data?.error || 'Failed to restore database backup.');
+      const serverErr = err.response?.data?.error || err.message || 'Failed to restore database backup.';
+      alert(`Database Restore Failed:\n${serverErr}`);
     } finally {
       setRestoring(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
