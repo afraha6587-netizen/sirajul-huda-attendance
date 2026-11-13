@@ -21,7 +21,7 @@ import { getClassSubjects, assignSubjectToClass, updateClassSubject, removeSubje
 import {
   saveAttendanceSession, saveDailyAttendance, getDailyAttendance,
   getAttendanceSessions, getSessionById, deleteSession,
-  getSyllabusLog,
+  getSyllabusLog, checkClassLeaveEndpoint,
 } from '../controllers/attendanceController';
 import { getMonthlyAttendanceReport, getDashboardStats, getStudentsAtRisk } from '../controllers/reportController';
 import { exportMonthlyReportToExcel, importExcelData, importSubjectsExcel } from '../controllers/importExportController';
@@ -129,6 +129,7 @@ router.post('/class-subjects/copy', requireAdmin, copyClassSubjectAssignments);
 router.delete('/class-subjects/:id', requireAdmin, removeSubjectFromClass);
 
 // Attendance & Syllabus Routes
+router.get('/attendance/check-leave', checkClassLeaveEndpoint);
 router.post('/attendance/session', saveAttendanceSession);
 router.post('/attendance/daily', saveDailyAttendance);
 router.get('/attendance/daily', getDailyAttendance);

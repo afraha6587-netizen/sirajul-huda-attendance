@@ -28,6 +28,9 @@ export const MarkAttendance: React.FC = () => {
   const [existingSession, setExistingSession] = useState<AttendanceSession | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(true);
 
+  // Declared Class Leave / Holiday state
+  const [declaredLeave, setDeclaredLeave] = useState<{ isLeave: boolean; reason?: string; message?: string } | null>(null);
+
   // Backup copies to revert if editing is cancelled
   const [originalAttendance, setOriginalAttendance] = useState<Record<string, 'PRESENT' | 'ABSENT' | 'LEAVE'>>({});
   const [originalTopicTaught, setOriginalTopicTaught] = useState<string>('');
@@ -69,10 +72,23 @@ export const MarkAttendance: React.FC = () => {
           date: selectedDate,
         },
       }),
+      api.get('/attendance/check-leave', {
+        params: {
+          classId: selectedCS.classId,
+          date: selectedDate,
+        },
+      }),
     ])
-      .then(([studRes, sessRes]) => {
+      .then(([studRes, sessRes, leaveRes]) => {
         const studentList: Student[] = Array.isArray(studRes.data) ? studRes.data : studRes.data?.students || [];
         setStudents(studentList);
+
+        // Check if class leave / holiday is declared for this date
+        if (leaveRes.data?.isLeave) {
+          setDeclaredLeave(leaveRes.data);
+        } else {
+          setDeclaredLeave(null);
+        }
 
         const existingSessions: AttendanceSession[] = Array.isArray(sessRes.data) ? sessRes.data : [];
         const sessionFound = existingSessions.length > 0 ? existingSessions[0] : null;
@@ -128,6 +144,10 @@ export const MarkAttendance: React.FC = () => {
   }, [selectedClassSubjectId, selectedDate]);
 
   const handleStatusChange = (studentId: string, status: 'PRESENT' | 'ABSENT' | 'LEAVE') => {
+    if (declaredLeave?.isLeave) {
+      alert(`Attendance cannot be marked: This day (${selectedDate}) is declared as leave for Class ${selectedCS?.class.name} because of: "${declaredLeave.reason}".`);
+      return;
+    }
     if (isAlreadyMarked && !isEditing) {
       if (window.confirm('Attendance is already marked for this subject today. Would you like to enter Edit Mode to modify records?')) {
         setIsEditing(true);
@@ -139,6 +159,10 @@ export const MarkAttendance: React.FC = () => {
   };
 
   const handleMarkAll = (status: 'PRESENT' | 'ABSENT' | 'LEAVE') => {
+    if (declaredLeave?.isLeave) {
+      alert(`Attendance cannot be marked: This day (${selectedDate}) is declared as leave for Class ${selectedCS?.class.name} because of: "${declaredLeave.reason}".`);
+      return;
+    }
     if (isAlreadyMarked && !isEditing) {
       if (window.confirm('Attendance is already marked for this subject today. Would you like to enter Edit Mode to modify records?')) {
         setIsEditing(true);
@@ -174,6 +198,12 @@ export const MarkAttendance: React.FC = () => {
 
   const handleSave = async () => {
     if (!selectedClassSubjectId || !selectedDate) return;
+
+    if (declaredLeave?.isLeave) {
+      alert(`Attendance cannot be marked: This day (${selectedDate}) is declared as leave for Class ${selectedCS?.class.name} because of: "${declaredLeave.reason}".`);
+      return;
+    }
+
     setSaving(true);
     setSuccessMsg('');
     setWhatsappAlerts([]);
@@ -227,6 +257,37 @@ export const MarkAttendance: React.FC = () => {
       <Navbar title="Mark Period Attendance" subtitle="Select Class, Subject, Period, and log syllabus progress" />
 
       <main className="max-w-7xl mx-auto px-6 pt-6 space-y-6">
+        {/* DECLARED CLASS LEAVE / HOLIDAY ALERT BANNER */}
+        {declaredLeave?.isLeave && (
+          <div className="p-5 rounded-3xl bg-amber-500/10 border-2 border-amber-500/40 text-amber-950 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fadeIn">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-black uppercase tracking-wider shadow-xs">
+                    Class Leave Declared
+                  </span>
+                  <span className="text-xs font-bold text-amber-800">
+                    Attendance Closed for this Date
+                  </span>
+                </div>
+                <h3 className="text-base font-black text-amber-950 mt-1">
+                  This day ({selectedDate}) is declared as LEAVE for Class {selectedCS?.class.name} because of: "{declaredLeave.reason}".
+                </h3>
+                <p className="text-xs text-amber-800/90 mt-0.5">
+                  Marking of attendance is not available on declared leave / exam / study days. This day will not penalize students' attendance percentage.
+                </p>
+              </div>
+            </div>
+            <div className="px-4 py-2.5 rounded-xl bg-amber-200/80 border border-amber-300 text-amber-950 font-black text-xs flex items-center gap-2 shrink-0">
+              <Lock className="w-4 h-4 text-amber-800" />
+              <span>Marking Disabled</span>
+            </div>
+          </div>
+        )}
+
         {/* Warning if 0 Class-Subject Assignments exist */}
         {classSubjects.length === 0 && (
           <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
@@ -455,29 +516,34 @@ export const MarkAttendance: React.FC = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => handleMarkAll('PRESENT')}
-              disabled={isAlreadyMarked && !isEditing}
+              disabled={Boolean(declaredLeave?.isLeave) || (isAlreadyMarked && !isEditing)}
               className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-bold hover:bg-emerald-100 border border-emerald-200 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Mark All Present
             </button>
             <button
               onClick={() => handleMarkAll('ABSENT')}
-              disabled={isAlreadyMarked && !isEditing}
+              disabled={Boolean(declaredLeave?.isLeave) || (isAlreadyMarked && !isEditing)}
               className="px-3 py-1.5 rounded-lg bg-rose-50 text-rose-800 text-xs font-bold hover:bg-rose-100 border border-rose-200 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Mark All Absent
             </button>
             <button
               onClick={() => handleMarkAll('LEAVE')}
-              disabled={isAlreadyMarked && !isEditing}
+              disabled={Boolean(declaredLeave?.isLeave) || (isAlreadyMarked && !isEditing)}
               className="px-3 py-1.5 rounded-lg bg-amber-50 text-amber-800 text-xs font-bold hover:bg-amber-100 border border-amber-200 disabled:opacity-40 disabled:cursor-not-allowed"
               title="Give leave to all students in this session"
             >
               Mark All Leave
             </button>
 
-            {/* ACTION BUTTON: Dynamically switches between Edit, Update, and Save */}
-            {isAlreadyMarked && !isEditing ? (
+            {/* ACTION BUTTON: Dynamically switches between Declared Leave, Edit, Update, and Save */}
+            {declaredLeave?.isLeave ? (
+              <div className="px-5 py-2.5 rounded-xl bg-amber-100 border border-amber-300 text-amber-900 font-extrabold text-xs flex items-center gap-2 cursor-not-allowed shadow-xs">
+                <Lock className="w-4 h-4 text-amber-800" />
+                <span>Attendance Closed (Leave: {declaredLeave.reason})</span>
+              </div>
+            ) : isAlreadyMarked && !isEditing ? (
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
@@ -558,39 +624,42 @@ export const MarkAttendance: React.FC = () => {
                           <div className="flex items-center justify-center gap-2">
                             <button
                               type="button"
+                              disabled={Boolean(declaredLeave?.isLeave) || (isAlreadyMarked && !isEditing)}
                               onClick={() => handleStatusChange(st.id, 'PRESENT')}
                               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                                 stStatus === 'PRESENT'
                                   ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-400/50'
                                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                              } ${isAlreadyMarked && !isEditing ? 'opacity-90 cursor-pointer' : ''}`}
-                              title={isAlreadyMarked && !isEditing ? 'Attendance is locked. Click to enter edit mode' : ''}
+                              } ${declaredLeave?.isLeave ? 'opacity-40 cursor-not-allowed' : isAlreadyMarked && !isEditing ? 'opacity-90 cursor-pointer' : ''}`}
+                              title={declaredLeave?.isLeave ? `Attendance closed: ${declaredLeave.reason}` : isAlreadyMarked && !isEditing ? 'Attendance is locked. Click to enter edit mode' : ''}
                             >
                               Present
                             </button>
 
                             <button
                               type="button"
+                              disabled={Boolean(declaredLeave?.isLeave) || (isAlreadyMarked && !isEditing)}
                               onClick={() => handleStatusChange(st.id, 'ABSENT')}
                               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                                 stStatus === 'ABSENT'
                                   ? 'bg-rose-600 text-white shadow-sm ring-2 ring-rose-400/50'
                                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                              } ${isAlreadyMarked && !isEditing ? 'opacity-90 cursor-pointer' : ''}`}
-                              title={isAlreadyMarked && !isEditing ? 'Attendance is locked. Click to enter edit mode' : ''}
+                              } ${declaredLeave?.isLeave ? 'opacity-40 cursor-not-allowed' : isAlreadyMarked && !isEditing ? 'opacity-90 cursor-pointer' : ''}`}
+                              title={declaredLeave?.isLeave ? `Attendance closed: ${declaredLeave.reason}` : isAlreadyMarked && !isEditing ? 'Attendance is locked. Click to enter edit mode' : ''}
                             >
                               Absent
                             </button>
 
                             <button
                               type="button"
+                              disabled={Boolean(declaredLeave?.isLeave) || (isAlreadyMarked && !isEditing)}
                               onClick={() => handleStatusChange(st.id, 'LEAVE')}
                               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                                 stStatus === 'LEAVE'
                                   ? 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-400/50'
                                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                              } ${isAlreadyMarked && !isEditing ? 'opacity-90 cursor-pointer' : ''}`}
-                              title={isAlreadyMarked && !isEditing ? 'Attendance is locked. Click to enter edit mode' : ''}
+                              } ${declaredLeave?.isLeave ? 'opacity-40 cursor-not-allowed' : isAlreadyMarked && !isEditing ? 'opacity-90 cursor-pointer' : ''}`}
+                              title={declaredLeave?.isLeave ? `Attendance closed: ${declaredLeave.reason}` : isAlreadyMarked && !isEditing ? 'Attendance is locked. Click to enter edit mode' : ''}
                             >
                               Leave
                             </button>

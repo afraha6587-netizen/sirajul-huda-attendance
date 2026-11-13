@@ -1,6 +1,60 @@
 import { Request, Response } from 'express';
 import { prisma } from '../utils/prisma';
 
+export const checkClassLeaveForDate = async (classId: string, dateStr: string) => {
+  const holidays = await prisma.institutionHoliday.findMany({
+    where: {
+      startDate: { lte: dateStr },
+      endDate: { gte: dateStr },
+    },
+  });
+
+  const matchingLeave = holidays.find((h) => {
+    if (h.type && h.type.startsWith('CLASS_LEAVE:')) {
+      const targetClassId = h.type.split(':')[1];
+      return targetClassId === classId;
+    }
+    return true; // College-wide holiday or leave
+  });
+
+  return matchingLeave || null;
+};
+
+export const checkClassLeaveEndpoint = async (req: Request, res: Response) => {
+  try {
+    const { classId, date } = req.query;
+    if (!classId || !date) {
+      return res.status(400).json({ error: 'classId and date are required' });
+    }
+
+    const leave = await checkClassLeaveForDate(String(classId), String(date).trim());
+    if (leave) {
+      const cls = await prisma.class.findUnique({ where: { id: String(classId) } });
+      const isClassSpecific = leave.type && leave.type.startsWith('CLASS_LEAVE:');
+      const message = isClassSpecific
+        ? `This day (${date}) is declared as leave for Class ${cls?.name || ''} because of: "${leave.title}". Marking of attendance is not available.`
+        : `This day (${date}) is declared as college-wide holiday/leave because of: "${leave.title}". Marking of attendance is not available.`;
+
+      return res.json({
+        isLeave: true,
+        reason: leave.title,
+        message,
+        holiday: {
+          id: leave.id,
+          title: leave.title,
+          type: leave.type,
+          startDate: leave.startDate,
+          endDate: leave.endDate,
+        },
+      });
+    }
+
+    res.json({ isLeave: false });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to check class leave status' });
+  }
+};
+
 export const saveAttendanceSession = async (req: Request, res: Response) => {
   try {
     const { classSubjectId, date, period, records, topicTaught, kitabPage, isEdit, sessionId } = req.body;
@@ -20,6 +74,20 @@ export const saveAttendanceSession = async (req: Request, res: Response) => {
     }
 
     const dateStr = String(date).trim();
+
+    // Check if this date is declared as leave / holiday for this class
+    const declaredLeave = await checkClassLeaveForDate(cs.classId, dateStr);
+    if (declaredLeave) {
+      const isClassSpecific = declaredLeave.type && declaredLeave.type.startsWith('CLASS_LEAVE:');
+      const msg = isClassSpecific
+        ? `Attendance cannot be marked: This day (${dateStr}) is declared as leave for Class ${cs.class.name} because of: "${declaredLeave.title}".`
+        : `Attendance cannot be marked: This day (${dateStr}) is declared as college-wide holiday/leave because of: "${declaredLeave.title}".`;
+      return res.status(403).json({
+        error: msg,
+        isDeclaredLeave: true,
+        leaveReason: declaredLeave.title,
+      });
+    }
 
     // Check if session already exists for this subject on this date (prevents duplicate attendance on same day)
     let existingSession = await prisma.attendanceSession.findFirst({
@@ -167,6 +235,21 @@ export const saveDailyAttendance = async (req: Request, res: Response) => {
     }
 
     const dateStr = String(date).trim();
+
+    // Check if this date is declared as leave / holiday for this class
+    const declaredLeave = await checkClassLeaveForDate(classId, dateStr);
+    if (declaredLeave) {
+      const cls = await prisma.class.findUnique({ where: { id: classId } });
+      const isClassSpecific = declaredLeave.type && declaredLeave.type.startsWith('CLASS_LEAVE:');
+      const msg = isClassSpecific
+        ? `Daily attendance cannot be marked: This day (${dateStr}) is declared as leave for Class ${cls?.name || ''} because of: "${declaredLeave.title}".`
+        : `Daily attendance cannot be marked: This day (${dateStr}) is declared as college-wide holiday/leave because of: "${declaredLeave.title}".`;
+      return res.status(403).json({
+        error: msg,
+        isDeclaredLeave: true,
+        leaveReason: declaredLeave.title,
+      });
+    }
 
     for (const r of records) {
       await prisma.dailyAttendance.upsert({
