@@ -213,17 +213,46 @@ export const getTeacherAttendance = async (req: AuthRequest, res: Response) => {
 
 export const saveTeacherAttendance = async (req: AuthRequest, res: Response) => {
   try {
-    const { teacherId, date, classId, period, status, reason } = req.body;
+    let { teacherId, date, classId, period, status, reason } = req.body;
 
-    if (!teacherId || !date) {
-      return res.status(400).json({ error: 'Teacher ID and date are required' });
+    if (!date) {
+      return res.status(400).json({ error: 'Date is required' });
     }
 
-    if (req.user?.role !== 'ADMIN') {
-      return res.status(403).json({ error: 'Permission denied. Teacher attendance and leaves can only be marked by Super Admin.' });
+    const userRole = req.user?.role;
+    const userId = req.user?.id;
+
+    if (userRole === 'ADMIN') {
+      if (!teacherId) {
+        return res.status(400).json({ error: 'Teacher ID is required' });
+      }
+    } else {
+      // Logged-in teacher entering their own absence
+      const myTeacher = await prisma.teacher.findFirst({
+        where: { userId: userId },
+      });
+
+      if (myTeacher) {
+        teacherId = myTeacher.id;
+      } else {
+        const userRec = await prisma.user.findUnique({ where: { id: userId } });
+        const teacherByEmail = userRec?.email
+          ? await prisma.teacher.findFirst({ where: { user: { email: userRec.email } } })
+          : null;
+        if (teacherByEmail) {
+          teacherId = teacherByEmail.id;
+        } else if (teacherId) {
+          const teacherExists = await prisma.teacher.findUnique({ where: { id: teacherId } });
+          if (!teacherExists) {
+            return res.status(404).json({ error: 'Teacher profile not found for this account' });
+          }
+        } else {
+          return res.status(404).json({ error: 'Teacher profile not found for this account' });
+        }
+      }
     }
 
-    const createdById = req.user?.id || 'system';
+    const createdById = userId || 'system';
 
     const record = await prisma.teacherAttendance.create({
       data: {
@@ -250,6 +279,16 @@ export const saveTeacherAttendance = async (req: AuthRequest, res: Response) => 
 export const deleteTeacherAttendance = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
+    const existing = await prisma.teacherAttendance.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ error: 'Teacher attendance record not found' });
+    }
+
+    // Admin can delete any record; Teachers can delete records they logged themselves
+    if (req.user?.role !== 'ADMIN' && existing.createdById !== req.user?.id) {
+      return res.status(403).json({ error: 'Permission denied. You can only delete absence records you created.' });
+    }
+
     await prisma.teacherAttendance.delete({ where: { id } });
     res.json({ message: 'Teacher attendance record deleted' });
   } catch (error: any) {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { X, Calendar, UserCheck, Trash2, Plus, AlertCircle } from 'lucide-react';
+import { X, Calendar, UserCheck, Trash2, Plus, AlertCircle, ShieldCheck } from 'lucide-react';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -26,7 +26,6 @@ export const TeacherAttendanceModal: React.FC<TeacherAttendanceModalProps> = ({ 
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!isAdmin) return;
     setLoading(true);
     Promise.all([
       api.get('/teachers'),
@@ -34,42 +33,40 @@ export const TeacherAttendanceModal: React.FC<TeacherAttendanceModalProps> = ({ 
       api.get('/teacher-attendance'),
     ])
       .then(([tRes, cRes, rRes]) => {
-        setTeachers(tRes.data);
-        setClasses(cRes.data);
-        setRecords(rRes.data);
-        if (tRes.data.length > 0) {
-          setSelectedTeacherId(tRes.data[0].id);
+        const tList: any[] = tRes.data || [];
+        setTeachers(tList);
+        setClasses(cRes.data || []);
+        setRecords(rRes.data || []);
+
+        if (isAdmin) {
+          if (tList.length > 0) {
+            setSelectedTeacherId(tList[0].id);
+          }
+        } else {
+          // Auto-select logged-in teacher
+          const myProfile = tList.find(
+            (t) => t.userId === user?.id || (t.user && t.user.email === user?.email)
+          );
+          if (myProfile) {
+            setSelectedTeacherId(myProfile.id);
+          } else if (tList.length > 0) {
+            setSelectedTeacherId(tList[0].id);
+          }
         }
       })
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
-  }, [isAdmin]);
+  }, [isAdmin, user]);
 
-  if (!isAdmin) {
-    return (
-      <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl text-center space-y-4">
-          <div className="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
-            <AlertCircle className="w-6 h-6" />
-          </div>
-          <h3 className="text-base font-bold text-slate-900">Access Restricted</h3>
-          <p className="text-xs text-slate-600">
-            Teacher attendance and leave records can only be marked and managed by Super Administrator. Teachers cannot mark teacher attendance.
-          </p>
-          <button
-            onClick={onClose}
-            className="w-full py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition-colors"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const myTeacherProfile = teachers.find(
+    (t) => t.userId === user?.id || (t.user && t.user.email === user?.email)
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedTeacherId || !date) {
+
+    const targetTeacherId = isAdmin ? selectedTeacherId : (myTeacherProfile?.id || selectedTeacherId);
+    if (!targetTeacherId || !date) {
       alert('Please select a teacher and date');
       return;
     }
@@ -77,7 +74,7 @@ export const TeacherAttendanceModal: React.FC<TeacherAttendanceModalProps> = ({ 
     setSaving(true);
     try {
       const payload = {
-        teacherId: selectedTeacherId,
+        teacherId: targetTeacherId,
         date,
         classId: selectedClassId || null,
         period: period ? Number(period) : null,
@@ -88,7 +85,11 @@ export const TeacherAttendanceModal: React.FC<TeacherAttendanceModalProps> = ({ 
       const res = await api.post('/teacher-attendance', payload);
       setRecords([res.data, ...records]);
       setReason('');
-      alert('Teacher absence/leave logged successfully! Class working days/sessions updated.');
+      alert(
+        isAdmin
+          ? 'Teacher absence/leave logged successfully!'
+          : 'Your absence/leave has been recorded successfully!'
+      );
     } catch (err: any) {
       alert(err.response?.data?.error || 'Failed to log teacher attendance');
     } finally {
@@ -117,9 +118,13 @@ export const TeacherAttendanceModal: React.FC<TeacherAttendanceModalProps> = ({ 
               <UserCheck className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-black tracking-tight">Teacher Absence & Leave Log</h2>
+              <h2 className="text-lg font-black tracking-tight">
+                {isAdmin ? 'Teacher Absence & Leave Log' : 'Log My Absence / Leave'}
+              </h2>
               <p className="text-xs text-amber-200 font-semibold">
-                Marking teacher absence automatically reduces class working sessions so students are not penalized
+                {isAdmin
+                  ? 'Super Admin: Record Usthad leaves. Automatically adjusts class sessions so students are not penalized.'
+                  : 'Enter your absence or official leave for today or an upcoming date.'}
               </p>
             </div>
           </div>
@@ -136,35 +141,53 @@ export const TeacherAttendanceModal: React.FC<TeacherAttendanceModalProps> = ({ 
         <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
           {/* Absence Logging Form */}
           <form onSubmit={handleSubmit} className="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-4 text-xs">
-            <div className="font-extrabold text-slate-900 uppercase tracking-wider flex items-center gap-2">
-              <Plus className="w-4 h-4 text-amber-600" />
-              <span>Log Teacher Absence or Partial Period Missed</span>
+            <div className="font-extrabold text-slate-900 uppercase tracking-wider flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Plus className="w-4 h-4 text-amber-600" />
+                <span>{isAdmin ? 'Log Teacher Absence or Partial Missed Period' : 'Enter My Absence Details'}</span>
+              </div>
+              {!isAdmin && (
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-black">
+                  Teacher Self-Service
+                </span>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                  Select Teacher / Usthad
-                </label>
-                <select
-                  value={selectedTeacherId}
-                  onChange={(e) => setSelectedTeacherId(e.target.value)}
-                  disabled={!isAdmin && teachers.some((t) => t.user?.email === user?.email)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white font-bold text-slate-800 focus:border-brand-600 focus:outline-none"
-                >
-                  <option value="">-- Select Usthad --</option>
-                  {teachers.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} ({t.code})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {isAdmin ? (
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                    Select Teacher / Usthad
+                  </label>
+                  <select
+                    value={selectedTeacherId}
+                    onChange={(e) => setSelectedTeacherId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white font-bold text-slate-800 focus:border-brand-600 focus:outline-none"
+                  >
+                    <option value="">-- Select Usthad --</option>
+                    {teachers.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} ({t.code})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                    Teacher Name
+                  </label>
+                  <div className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white font-bold text-slate-900">
+                    {myTeacherProfile?.name || user?.name} ({myTeacherProfile?.code || 'Usthad'})
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Date</label>
                 <input
                   type="date"
+                  required
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white font-bold text-slate-800 focus:border-brand-600 focus:outline-none"
@@ -195,7 +218,9 @@ export const TeacherAttendanceModal: React.FC<TeacherAttendanceModalProps> = ({ 
                 </label>
                 <input
                   type="number"
-                  placeholder="e.g. 1, 2, 3..."
+                  min="1"
+                  max="8"
+                  placeholder="e.g. 1, 2, 3... (Leave empty for full day)"
                   value={period}
                   onChange={(e) => setPeriod(e.target.value ? Number(e.target.value) : '')}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white font-bold text-slate-800 focus:border-brand-600 focus:outline-none"
@@ -220,7 +245,7 @@ export const TeacherAttendanceModal: React.FC<TeacherAttendanceModalProps> = ({ 
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. Late arrival / Personal leave"
+                  placeholder="e.g. Personal leave / Emergency / Health"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white font-bold text-slate-800 focus:border-brand-600 focus:outline-none"
@@ -234,7 +259,7 @@ export const TeacherAttendanceModal: React.FC<TeacherAttendanceModalProps> = ({ 
                 disabled={saving}
                 className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 disabled:opacity-50 transition-colors"
               >
-                <span>{saving ? 'Saving...' : 'Record Teacher Absence'}</span>
+                <span>{saving ? 'Saving...' : isAdmin ? 'Record Teacher Absence' : 'Submit My Absence'}</span>
               </button>
             </div>
           </form>
@@ -243,7 +268,9 @@ export const TeacherAttendanceModal: React.FC<TeacherAttendanceModalProps> = ({ 
           <div className="space-y-3">
             <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-amber-600" />
-              <span>Teacher Absence Log History ({records.length})</span>
+              <span>
+                {isAdmin ? `All Teacher Absence Logs (${records.length})` : `My Absence History (${records.filter((r) => r.teacherId === myTeacherProfile?.id || r.createdById === user?.id).length})`}
+              </span>
             </h3>
 
             {loading ? (
@@ -252,34 +279,36 @@ export const TeacherAttendanceModal: React.FC<TeacherAttendanceModalProps> = ({ 
               </div>
             ) : records.length > 0 ? (
               <div className="divide-y divide-slate-100 bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                {records.map((r) => (
-                  <div key={r.id} className="p-4 flex items-center justify-between gap-4 hover:bg-slate-50 text-xs">
-                    <div>
-                      <span className="font-extrabold text-slate-900 text-sm">{r.teacher?.name}</span>
-                      <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
-                        <span className="font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
-                          {r.status}
-                        </span>
-                        <span>•</span>
-                        <span>Date: {r.date}</span>
-                        <span>•</span>
-                        <span>Scope: {r.class ? `Class ${r.class.name}` : 'Full Day'}</span>
-                        {r.period && <span>(Period #{r.period})</span>}
+                {records
+                  .filter((r) => isAdmin || r.teacherId === myTeacherProfile?.id || r.createdById === user?.id)
+                  .map((r) => (
+                    <div key={r.id} className="p-4 flex items-center justify-between gap-4 hover:bg-slate-50 text-xs">
+                      <div>
+                        <span className="font-extrabold text-slate-900 text-sm">{r.teacher?.name}</span>
+                        <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
+                          <span className="font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                            {r.status}
+                          </span>
+                          <span>•</span>
+                          <span>Date: {r.date}</span>
+                          <span>•</span>
+                          <span>Scope: {r.class ? `Class ${r.class.name}` : 'Full Day'}</span>
+                          {r.period && <span>(Period #{r.period})</span>}
+                        </div>
+                        {r.reason && <p className="text-[11px] text-slate-500 italic mt-1 font-medium">{r.reason}</p>}
                       </div>
-                      {r.reason && <p className="text-[11px] text-slate-400 italic mt-1">{r.reason}</p>}
-                    </div>
 
-                    {(isAdmin || r.createdById === user?.id) && (
-                      <button
-                        onClick={() => handleDelete(r.id)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                        title="Delete Record"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                ))}
+                      {(isAdmin || r.createdById === user?.id) && (
+                        <button
+                          onClick={() => handleDelete(r.id)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                          title="Delete Record"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
               </div>
             ) : (
               <div className="p-8 text-center text-slate-400 text-xs font-semibold bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">

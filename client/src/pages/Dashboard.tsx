@@ -69,7 +69,7 @@ export const Dashboard: React.FC = () => {
           {kpiCards.map((card, idx) => {
             const Icon = card.icon;
             const isStudentsCard = card.title === 'Total Students';
-            const isTeachersCard = card.title === 'Active Teachers' && isAdmin;
+            const isTeachersCard = card.title === 'Active Teachers';
 
             return (
               <div
@@ -83,7 +83,15 @@ export const Dashboard: React.FC = () => {
                     ? 'cursor-pointer hover:border-brand-500 hover:shadow-md hover:scale-[1.02]'
                     : ''
                 }`}
-                title={isStudentsCard ? 'Click to view active students roster & remarks' : isTeachersCard ? 'Click to log teacher leave/absence (Super Admin)' : ''}
+                title={
+                  isStudentsCard
+                    ? 'Click to view active students roster & remarks'
+                    : isTeachersCard
+                    ? isAdmin
+                      ? 'Click to log teacher leave/absence (Super Admin)'
+                      : 'Click to record your absence or leave'
+                    : ''
+                }
               >
                 <div>
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{card.title}</p>
@@ -95,7 +103,7 @@ export const Dashboard: React.FC = () => {
                   )}
                   {isTeachersCard && (
                     <span className="text-[10px] font-bold text-amber-600 underline mt-0.5 inline-block">
-                      Log Teacher Leave →
+                      {isAdmin ? 'Teacher Leave Log →' : 'Log My Absence →'}
                     </span>
                   )}
                 </div>
@@ -120,16 +128,14 @@ export const Dashboard: React.FC = () => {
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-            {isAdmin && (
-              <button
-                onClick={() => setShowTeacherAttendanceModal(true)}
-                className="px-4 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shadow-md flex items-center gap-2 transition-colors"
-                title="Super Admin: Log Usthad Absence or Leave"
-              >
-                <UserX className="w-4 h-4" />
-                <span>Teacher Leave Log</span>
-              </button>
-            )}
+            <button
+              onClick={() => setShowTeacherAttendanceModal(true)}
+              className="px-4 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shadow-md flex items-center gap-2 transition-colors"
+              title={isAdmin ? "Super Admin: Log Usthad Absence or Leave" : "Record your own absence or leave"}
+            >
+              <UserX className="w-4 h-4" />
+              <span>{isAdmin ? "Teacher Leave Log" : "Enter My Absence"}</span>
+            </button>
             <Link
               to="/mark-attendance"
               className="px-5 py-3 rounded-xl bg-white text-brand-700 font-bold text-xs shadow-md hover:bg-brand-50 flex items-center gap-2 transition-colors"
